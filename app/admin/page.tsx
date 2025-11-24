@@ -4,44 +4,100 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { motion } from 'framer-motion'
+import { toast } from 'sonner'
+import {
+    Package,
+    TrendingUp,
+    DollarSign,
+    Star,
+    Search,
+    Filter,
+    Edit,
+    Trash2,
+    Plus,
+    Eye,
+    EyeOff
+} from 'lucide-react'
+import Loading from '@/components/Loading'
 
 export default function AdminDashboard() {
     const { data: session, status } = useSession()
     const router = useRouter()
     const [products, setProducts] = useState([])
+    const [filteredProducts, setFilteredProducts] = useState([])
     const [loading, setLoading] = useState(true)
+    const [searchTerm, setSearchTerm] = useState('')
+    const [filterCategory, setFilterCategory] = useState('Todas')
+    const [filterStatus, setFilterStatus] = useState('Todos')
 
     useEffect(() => {
         if (status === 'unauthenticated') {
-            router.push('/api/auth/signin')
+            router.push('/auth/signin')
             return
         }
 
         if (status === 'authenticated' && session?.user?.role !== 'ADMIN') {
-            alert('No tienes permisos de administrador')
+            toast.error('No tienes permisos de administrador')
             router.push('/')
             return
         }
 
-        if (session?.user?.role === 'ADMIN') {
+        if (status === 'authenticated' && session?.user?.role === 'ADMIN') {
             fetchProducts()
         }
     }, [status, session])
+
+    useEffect(() => {
+        filterProducts()
+    }, [searchTerm, filterCategory, filterStatus, products])
 
     const fetchProducts = async () => {
         try {
             const response = await fetch('/api/products')
             const data = await response.json()
             setProducts(data)
+            setFilteredProducts(data)
         } catch (error) {
             console.error('Error fetching products:', error)
+            toast.error('Error al cargar productos')
         } finally {
             setLoading(false)
         }
     }
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('¿Estás seguro de eliminar este producto?')) return
+    const filterProducts = () => {
+        let filtered = [...products]
+
+        if (searchTerm) {
+            filtered = filtered.filter(p =>
+                p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                p.category.toLowerCase().includes(searchTerm.toLowerCase())
+            )
+        }
+
+        if (filterCategory !== 'Todas') {
+            filtered = filtered.filter(p => p.category === filterCategory)
+        }
+
+        if (filterStatus === 'Activos') {
+            filtered = filtered.filter(p => p.active)
+        } else if (filterStatus === 'Inactivos') {
+            filtered = filtered.filter(p => !p.active)
+        } else if (filterStatus === 'Destacados') {
+            filtered = filtered.filter(p => p.featured)
+        } else if (filterStatus === 'Sin Stock') {
+            filtered = filtered.filter(p => p.stock === 0)
+        }
+
+        setFilteredProducts(filtered)
+    }
+
+    const handleDelete = async (id: string, name: string) => {
+        const confirmDelete = window.confirm(`¿Estás seguro de eliminar "${name}"?`)
+        if (!confirmDelete) return
+
+        const loadingToast = toast.loading('Eliminando producto...')
 
         try {
             const response = await fetch(`/api/products/${id}`, {
@@ -50,167 +106,385 @@ export default function AdminDashboard() {
 
             if (!response.ok) throw new Error('Error al eliminar')
 
-            alert('Producto eliminado')
+            toast.success('Producto eliminado exitosamente', { id: loadingToast })
             fetchProducts()
         } catch (error) {
             console.error('Error:', error)
-            alert('Error al eliminar producto')
+            toast.error('Error al eliminar producto', { id: loadingToast })
+        }
+    }
+
+    const toggleActive = async (id: string, currentStatus: boolean) => {
+        const loadingToast = toast.loading('Actualizando estado...')
+
+        try {
+            const response = await fetch(`/api/products/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ active: !currentStatus })
+            })
+
+            if (!response.ok) throw new Error('Error al actualizar')
+
+            toast.success(
+                currentStatus ? 'Producto desactivado' : 'Producto activado',
+                { id: loadingToast }
+            )
+            fetchProducts()
+        } catch (error) {
+            console.error('Error:', error)
+            toast.error('Error al actualizar estado', { id: loadingToast })
+        }
+    }
+
+    const toggleFeatured = async (id: string, currentStatus: boolean) => {
+        const loadingToast = toast.loading('Actualizando destacado...')
+
+        try {
+            const response = await fetch(`/api/products/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ featured: !currentStatus })
+            })
+
+            if (!response.ok) throw new Error('Error al actualizar')
+
+            toast.success(
+                currentStatus ? 'Producto removido de destacados' : 'Producto marcado como destacado',
+                { id: loadingToast }
+            )
+            fetchProducts()
+        } catch (error) {
+            console.error('Error:', error)
+            toast.error('Error al actualizar destacado', { id: loadingToast })
         }
     }
 
     if (loading) {
-        return (
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
-                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
-            </div>
-        )
+        return <Loading />
     }
 
+    const categories = ['Todas', ...new Set(products.map((p: any) => p.category))]
+    const totalValue = products.reduce((sum: number, p: any) => sum + (p.price * p.stock), 0)
+
+    const stats = [
+        {
+            icon: Package,
+            label: 'Total Productos',
+            value: products.length,
+            color: 'from-blue-500 to-blue-600',
+            iconBg: 'bg-blue-100',
+            iconColor: 'text-blue-600'
+        },
+        {
+            icon: TrendingUp,
+            label: 'Productos Activos',
+            value: products.filter((p: any) => p.active).length,
+            color: 'from-green-500 to-green-600',
+            iconBg: 'bg-green-100',
+            iconColor: 'text-green-600'
+        },
+        {
+            icon: Star,
+            label: 'Destacados',
+            value: products.filter((p: any) => p.featured).length,
+            color: 'from-yellow-500 to-yellow-600',
+            iconBg: 'bg-yellow-100',
+            iconColor: 'text-yellow-600'
+        },
+        {
+            icon: DollarSign,
+            label: 'Valor Inventario',
+            value: `$${totalValue.toFixed(0)}`,
+            color: 'from-purple-500 to-purple-600',
+            iconBg: 'bg-purple-100',
+            iconColor: 'text-purple-600'
+        },
+    ]
+
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="flex justify-between items-center mb-8">
-                <h1 className="text-3xl font-bold text-gray-900">
-                    Panel de Administración
-                </h1>
-                <Link
-                    href="/admin/productos/nuevo"
-                    className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition font-semibold"
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {/* Header */}
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4"
                 >
-                    + Nuevo Producto
-                </Link>
-            </div>
+                    <div>
+                        <h1 className="text-4xl font-black text-gray-900 mb-2">
+                            Panel de Administración
+                        </h1>
+                        <p className="text-gray-600">
+                            Gestiona tus productos y órdenes
+                        </p>
+                    </div>
+                    <Link href="/admin/productos/nuevo">
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-300 font-semibold flex items-center gap-2 shadow-lg hover:shadow-red-500/50"
+                        >
+                            <Plus className="w-5 h-5" />
+                            Nuevo Producto
+                        </motion.button>
+                    </Link>
+                </motion.div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-white p-6 rounded-lg shadow-md">
-                    <h3 className="text-gray-600 text-sm font-medium mb-2">
-                        Total Productos
-                    </h3>
-                    <p className="text-3xl font-bold text-gray-900">{products.length}</p>
+                {/* Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    {stats.map((stat, index) => (
+                        <motion.div
+                            key={index}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                            whileHover={{ y: -5 }}
+                            className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-gray-600 text-sm font-medium mb-1">
+                                        {stat.label}
+                                    </p>
+                                    <p className="text-3xl font-black bg-gradient-to-r ${stat.color} bg-clip-text text-transparent">
+                                        {stat.value}
+                                    </p>
+                                </div>
+                                <div className={`${stat.iconBg} p-3 rounded-xl`}>
+                                    <stat.icon className={`w-6 h-6 ${stat.iconColor}`} />
+                                </div>
+                            </div>
+                        </motion.div>
+                    ))}
                 </div>
-                <div className="bg-white p-6 rounded-lg shadow-md">
-                    <h3 className="text-gray-600 text-sm font-medium mb-2">
-                        Productos Activos
-                    </h3>
-                    <p className="text-3xl font-bold text-green-600">
-                        {products.filter((p: any) => p.active).length}
-                    </p>
-                </div>
-                <div className="bg-white p-6 rounded-lg shadow-md">
-                    <h3 className="text-gray-600 text-sm font-medium mb-2">
-                        Productos Destacados
-                    </h3>
-                    <p className="text-3xl font-bold text-red-600">
-                        {products.filter((p: any) => p.featured).length}
-                    </p>
-                </div>
-            </div>
 
-            {/* Products Table */}
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Producto
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Categoría
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Precio
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Stock
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Estado
-                                </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Acciones
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {products.map((product: any) => (
-                                <tr key={product.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="flex items-center">
-                                            <div className="h-10 w-10 flex-shrink-0">
-                                                {product.images?.[0] ? (
-                                                    <img
-                                                        className="h-10 w-10 rounded object-cover"
-                                                        src={product.images[0]}
-                                                        alt={product.name}
-                                                    />
-                                                ) : (
-                                                    <div className="h-10 w-10 rounded bg-gray-200"></div>
-                                                )}
-                                            </div>
-                                            <div className="ml-4">
-                                                <div className="text-sm font-medium text-gray-900">
-                                                    {product.name}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="text-sm text-gray-900">
-                                            {product.category}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="text-sm font-semibold text-gray-900">
-                                            ${product.price.toFixed(2)}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span
-                                            className={`text-sm ${product.stock > 10
-                                                    ? 'text-green-600'
-                                                    : product.stock > 0
-                                                        ? 'text-yellow-600'
-                                                        : 'text-red-600'
-                                                }`}
-                                        >
-                                            {product.stock}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span
-                                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${product.active
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : 'bg-red-100 text-red-800'
-                                                }`}
-                                        >
-                                            {product.active ? 'Activo' : 'Inactivo'}
-                                        </span>
-                                        {product.featured && (
-                                            <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                                Destacado
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <Link
-                                            href={`/admin/productos/${product.id}`}
-                                            className="text-blue-600 hover:text-blue-900 mr-4"
-                                        >
-                                            Editar
-                                        </Link>
-                                        <button
-                                            onClick={() => handleDelete(product.id)}
-                                            className="text-red-600 hover:text-red-900"
-                                        >
-                                            Eliminar
-                                        </button>
-                                    </td>
+                {/* Filters */}
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="bg-white p-6 rounded-2xl shadow-lg mb-6"
+                >
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        {/* Search */}
+                        <div className="md:col-span-2 relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                            <input
+                                type="text"
+                                placeholder="Buscar productos..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
+                            />
+                        </div>
+
+                        {/* Category */}
+                        <div className="relative">
+                            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                            <select
+                                value={filterCategory}
+                                onChange={(e) => setFilterCategory(e.target.value)}
+                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition appearance-none"
+                            >
+                                {categories.map(cat => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Status */}
+                        <div>
+                            <select
+                                value={filterStatus}
+                                onChange={(e) => setFilterStatus(e.target.value)}
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition appearance-none"
+                            >
+                                <option value="Todos">Todos los estados</option>
+                                <option value="Activos">Activos</option>
+                                <option value="Inactivos">Inactivos</option>
+                                <option value="Destacados">Destacados</option>
+                                <option value="Sin Stock">Sin Stock</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
+                        <span>
+                            Mostrando <span className="font-bold text-red-600">{filteredProducts.length}</span> de <span className="font-bold">{products.length}</span> productos
+                        </span>
+                    </div>
+                </motion.div>
+
+                {/* Products Table */}
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    className="bg-white rounded-2xl shadow-lg overflow-hidden"
+                >
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                                <tr>
+                                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                        Producto
+                                    </th>
+                                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                        Categoría
+                                    </th>
+                                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                        Precio
+                                    </th>
+                                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                        Stock
+                                    </th>
+                                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                        Estado
+                                    </th>
+                                    <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                        Acciones
+                                    </th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {filteredProducts.length > 0 ? (
+                                    filteredProducts.map((product: any, index) => (
+                                        <motion.tr
+                                            key={product.id}
+                                            initial={{ opacity: 0, x: -20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: index * 0.05 }}
+                                            className="hover:bg-gray-50 transition-colors"
+                                        >
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="flex items-center">
+                                                    <div className="h-12 w-12 flex-shrink-0 relative group">
+                                                        {product.images?.[0] ? (
+                                                            <img
+                                                                className="h-12 w-12 rounded-lg object-cover border-2 border-gray-200 group-hover:scale-110 transition-transform duration-300"
+                                                                src={product.images[0]}
+                                                                alt={product.name}
+                                                            />
+                                                        ) : (
+                                                            <div className="h-12 w-12 rounded-lg bg-gray-200 flex items-center justify-center">
+                                                                <Package className="w-6 h-6 text-gray-400" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="ml-4">
+                                                        <div className="text-sm font-bold text-gray-900">
+                                                            {product.name}
+                                                        </div>
+                                                        <div className="text-xs text-gray-500">
+                                                            {product.images?.length || 0} imágenes
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                    {product.category}
+                                                </span>
+                                            </td>
+
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className="text-lg font-bold text-gray-900">
+                                                    ${product.price.toFixed(2)}
+                                                </span>
+                                            </td>
+
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span
+                                                    className={`text-sm font-bold ${product.stock > 10
+                                                            ? 'text-green-600'
+                                                            : product.stock > 0
+                                                                ? 'text-yellow-600'
+                                                                : 'text-red-600'
+                                                        }`}
+                                                >
+                                                    {product.stock} und.
+                                                </span>
+                                            </td>
+
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="flex flex-col gap-2">
+                                                    <motion.button
+                                                        whileHover={{ scale: 1.05 }}
+                                                        whileTap={{ scale: 0.95 }}
+                                                        onClick={() => toggleActive(product.id, product.active)}
+                                                        className={`px-3 py-1 inline-flex items-center gap-1 text-xs leading-5 font-semibold rounded-full cursor-pointer transition-all ${product.active
+                                                                ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                                                : 'bg-red-100 text-red-800 hover:bg-red-200'
+                                                            }`}
+                                                    >
+                                                        {product.active ? (
+                                                            <>
+                                                                <Eye className="w-3 h-3" />
+                                                                Activo
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <EyeOff className="w-3 h-3" />
+                                                                Inactivo
+                                                            </>
+                                                        )}
+                                                    </motion.button>
+
+                                                    <motion.button
+                                                        whileHover={{ scale: 1.05 }}
+                                                        whileTap={{ scale: 0.95 }}
+                                                        onClick={() => toggleFeatured(product.id, product.featured)}
+                                                        className={`px-3 py-1 inline-flex items-center gap-1 text-xs leading-5 font-semibold rounded-full cursor-pointer transition-all ${product.featured
+                                                                ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                            }`}
+                                                    >
+                                                        <Star className={`w-3 h-3 ${product.featured ? 'fill-current' : ''}`} />
+                                                        {product.featured ? 'Destacado' : 'Normal'}
+                                                    </motion.button>
+                                                </div>
+                                            </td>
+
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <Link href={`/admin/productos/${product.id}`}>
+                                                        <motion.button
+                                                            whileHover={{ scale: 1.1 }}
+                                                            whileTap={{ scale: 0.9 }}
+                                                            className="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-50 rounded-lg transition-all"
+                                                        >
+                                                            <Edit className="w-5 h-5" />
+                                                        </motion.button>
+                                                    </Link>
+
+                                                    <motion.button
+                                                        whileHover={{ scale: 1.1 }}
+                                                        whileTap={{ scale: 0.9 }}
+                                                        onClick={() => handleDelete(product.id, product.name)}
+                                                        className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-lg transition-all"
+                                                    >
+                                                        <Trash2 className="w-5 h-5" />
+                                                    </motion.button>
+                                                </div>
+                                            </td>
+                                        </motion.tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                                            <Package className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                                            <p className="text-lg font-medium">No se encontraron productos</p>
+                                            <p className="text-sm">Intenta con otros filtros</p>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </motion.div>
             </div>
         </div>
     )

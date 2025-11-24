@@ -1,15 +1,18 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { CartProvider } from '@/context/CartContext'
 import Navbar from '@/components/Navbar'
-import SessionProvider from '@/components/SessionProvider'
+import Footer from '@/components/Footer'
+import Providers from '@/components/Providers'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
-  title: 'Red Estampación - Tienda de Camisas',
-  description: 'Las mejores camisas estampadas',
+  title: 'Red Estampación - Tienda de Camisas Premium',
+  description: 'Las mejores camisas estampadas con diseños únicos. Calidad premium y estilo incomparable.',
 }
 
 export default function RootLayout({
@@ -18,16 +21,17 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="es">
-      <body className={inter.className}>
-        <SessionProvider>
-          <CartProvider>
+    <html lang="es" suppressHydrationWarning>
+      <body className={inter.className} suppressHydrationWarning>
+        <Providers>
+          <div className="min-h-screen flex flex-col bg-white">
             <Navbar />
-            <main className="min-h-screen">
+            <main className="flex-1 pt-16">
               {children}
             </main>
-          </CartProvider>
-        </SessionProvider>
+            <Footer />
+          </div>
+        </Providers>
       </body>
     </html>
   )

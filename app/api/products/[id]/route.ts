@@ -3,6 +3,15 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../../auth/[...nextauth]/route'
 
+// Helper para parsear JSON
+function parseJSON(str: string): any {
+  try {
+    return JSON.parse(str)
+  } catch {
+    return []
+  }
+}
+
 // GET - Obtener un producto
 export async function GET(
   request: NextRequest,
@@ -20,7 +29,13 @@ export async function GET(
       )
     }
 
-    return NextResponse.json(product)
+    // Parsear campos JSON
+    return NextResponse.json({
+      ...product,
+      images: parseJSON(product.images),
+      sizes: parseJSON(product.sizes),
+      colors: parseJSON(product.colors)
+    })
   } catch (error) {
     return NextResponse.json(
       { error: 'Error al obtener producto' },
@@ -46,16 +61,26 @@ export async function PUT(
 
     const body = await request.json()
 
+    // Convertir arrays a strings si es necesario
+    const dataToUpdate: any = { ...body }
+    if (body.images) dataToUpdate.images = typeof body.images === 'string' ? body.images : JSON.stringify(body.images)
+    if (body.sizes) dataToUpdate.sizes = typeof body.sizes === 'string' ? body.sizes : JSON.stringify(body.sizes)
+    if (body.colors) dataToUpdate.colors = typeof body.colors === 'string' ? body.colors : JSON.stringify(body.colors)
+    if (body.price) dataToUpdate.price = parseFloat(body.price)
+    if (body.stock !== undefined) dataToUpdate.stock = parseInt(body.stock)
+
     const product = await prisma.product.update({
       where: { id: params.id },
-      data: {
-        ...body,
-        price: body.price ? parseFloat(body.price) : undefined,
-        stock: body.stock ? parseInt(body.stock) : undefined,
-      }
+      data: dataToUpdate
     })
 
-    return NextResponse.json(product)
+    // Devolver con campos parseados
+    return NextResponse.json({
+      ...product,
+      images: parseJSON(product.images),
+      sizes: parseJSON(product.sizes),
+      colors: parseJSON(product.colors)
+    })
   } catch (error) {
     return NextResponse.json(
       { error: 'Error al actualizar producto' },

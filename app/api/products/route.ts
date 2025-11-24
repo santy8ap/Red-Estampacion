@@ -3,6 +3,15 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../auth/[...nextauth]/route'
 
+// Helper para parsear JSON
+function parseJSON(str: string): any {
+  try {
+    return JSON.parse(str)
+  } catch {
+    return []
+  }
+}
+
 // GET - Listar productos con filtros
 export async function GET(request: NextRequest) {
   try {
@@ -15,23 +24,43 @@ export async function GET(request: NextRequest) {
 
     const where: any = { active: true }
 
-    if (category) where.category = category
-    if (color) where.colors = { has: color }
-    if (size) where.sizes = { has: size }
+    if (category && category !== 'Todas') where.category = category
     if (featured === 'true') where.featured = true
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } }
+        { name: { contains: search } },
+        { description: { contains: search } }
       ]
     }
 
-    const products = await prisma.product.findMany({
+    let products = await prisma.product.findMany({
       where,
       orderBy: { createdAt: 'desc' }
     })
 
-    return NextResponse.json(products)
+    // Parsear los campos JSON y filtrar por color/talla
+    let parsedProducts = products.map(p => ({
+      ...p,
+      images: parseJSON(p.images),
+      sizes: parseJSON(p.sizes),
+      colors: parseJSON(p.colors)
+    }))
+
+    // Filtrar por color si se especifica
+    if (color && color !== 'Todos') {
+      parsedProducts = parsedProducts.filter(p => 
+        p.colors.includes(color)
+      )
+    }
+
+    // Filtrar por talla si se especifica
+    if (size && size !== 'Todas') {
+      parsedProducts = parsedProducts.filter(p => 
+        p.sizes.includes(size)
+      )
+    }
+
+    return NextResponse.json(parsedProducts)
   } catch (error) {
     console.error('Error fetching products:', error)
     return NextResponse.json(
@@ -63,7 +92,8 @@ export async function POST(request: NextRequest) {
       sizes,
       colors,
       stock,
-      featured
+      featured,
+      active
     } = body
 
     const product = await prisma.product.create({
@@ -71,16 +101,23 @@ export async function POST(request: NextRequest) {
         name,
         description,
         price: parseFloat(price),
-        images,
+        images: typeof images === 'string' ? images : JSON.stringify(images),
         category,
-        sizes,
-        colors,
+        sizes: typeof sizes === 'string' ? sizes : JSON.stringify(sizes),
+        colors: typeof colors === 'string' ? colors : JSON.stringify(colors),
         stock: parseInt(stock),
-        featured: featured || false
+        featured: featured || false,
+        active: active !== undefined ? active : true
       }
     })
 
-    return NextResponse.json(product, { status: 201 })
+    // Devolver con campos parseados
+    return NextResponse.json({
+      ...product,
+      images: parseJSON(product.images),
+      sizes: parseJSON(product.sizes),
+      colors: parseJSON(product.colors)
+    }, { status: 201 })
   } catch (error) {
     console.error('Error creating product:', error)
     return NextResponse.json(

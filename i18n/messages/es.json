@@ -1,0 +1,65 @@
+{
+  "common": {
+    "loading": "Cargando...",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "close": "Cerrar"
+  },
+  "nav": {
+    "home": "Inicio",
+    "products": "Productos",
+    "categories": "Categorías",
+    "cart": "Carrito",
+    "admin": "Admin",
+    "signIn": "Iniciar Sesión",
+    "signOut": "Cerrar Sesión",
+    "myOrders": "Mis Órdenes"
+  },
+  "home": {
+    "hero": {
+      "title": "Red Estampación",
+      "subtitle": "Las mejores camisas estampadas con diseños únicos. Calidad premium y estilo incomparable.",
+      "cta": "Ver Productos"
+    },
+    "featured": "Productos Destacados",
+    "categories": "Categorías",
+    "ctaTitle": "¿Listo para renovar tu estilo?",
+    "ctaSubtitle": "Explora nuestra colección completa de camisas",
+    "ctaButton": "Explorar Ahora"
+  },
+  "products": {
+    "title": "Nuestros Productos",
+    "noProducts": "No hay productos disponibles",
+    "viewMore": "Ver más",
+    "featured": "Destacado",
+    "addToCart": "Agregar al Carrito",
+    "outOfStock": "Agotado"
+  },
+  "cart": {
+    "title": "Carrito de Compras",
+    "empty": "Tu carrito está vacío",
+    "subtotal": "Subtotal",
+    "total": "Total",
+    "checkout": "Proceder al Pago",
+    "continueShopping": "Continuar comprando",
+    "remove": "Eliminar",
+    "quantity": "Cantidad"
+  },
+  "notifications": {
+    "success": {
+      "productAdded": "Producto agregado al carrito",
+      "productUpdated": "Producto actualizado",
+      "productDeleted": "Producto eliminado",
+      "orderCreated": "Orden creada exitosamente"
+    },
+    "error": {
+      "generic": "Ocurrió un error",
+      "unauthorized": "No autorizado",
+      "notFound": "No encontrado"
+    }
+  }
+}

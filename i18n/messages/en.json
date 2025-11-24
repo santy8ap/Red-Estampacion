@@ -1,0 +1,65 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "filter": "Filter",
+    "close": "Close"
+  },
+  "nav": {
+    "home": "Home",
+    "products": "Products",
+    "categories": "Categories",
+    "cart": "Cart",
+    "admin": "Admin",
+    "signIn": "Sign In",
+    "signOut": "Sign Out",
+    "myOrders": "My Orders"
+  },
+  "home": {
+    "hero": {
+      "title": "Red Estampación",
+      "subtitle": "The best printed shirts with unique designs. Premium quality and incomparable style.",
+      "cta": "View Products"
+    },
+    "featured": "Featured Products",
+    "categories": "Categories",
+    "ctaTitle": "Ready to renew your style?",
+    "ctaSubtitle": "Explore our complete collection of shirts",
+    "ctaButton": "Explore Now"
+  },
+  "products": {
+    "title": "Our Products",
+    "noProducts": "No products available",
+    "viewMore": "View more",
+    "featured": "Featured",
+    "addToCart": "Add to Cart",
+    "outOfStock": "Out of Stock"
+  },
+  "cart": {
+    "title": "Shopping Cart",
+    "empty": "Your cart is empty",
+    "subtotal": "Subtotal",
+    "total": "Total",
+    "checkout": "Proceed to Checkout",
+    "continueShopping": "Continue shopping",
+    "remove": "Remove",
+    "quantity": "Quantity"
+  },
+  "notifications": {
+    "success": {
+      "productAdded": "Product added to cart",
+      "productUpdated": "Product updated",
+      "productDeleted": "Product deleted",
+      "orderCreated": "Order created successfully"
+    },
+    "error": {
+      "generic": "An error occurred",
+      "unauthorized": "Unauthorized",
+      "notFound": "Not found"
+    }
+  }
+}

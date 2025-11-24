@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { toast } from 'sonner'
 import { useDropzone } from 'react-dropzone'
 
 type ImageUploadProps = {
@@ -23,15 +24,15 @@ export default function ImageUpload({
         setUploading(true)
         const uploadedUrls: string[] = []
 
+        const loadingToast = toast.loading(`Subiendo ${acceptedFiles.length} imagen(es)...`)
+
         for (let i = 0; i < acceptedFiles.length; i++) {
             const file = acceptedFiles[i]
-            setUploadProgress((i / acceptedFiles.length) * 100)
+            setUploadProgress(((i + 1) / acceptedFiles.length) * 100)
 
             try {
-                // Convertir a base64
                 const base64 = await convertToBase64(file)
 
-                // Subir a Cloudinary
                 const response = await fetch('/api/upload', {
                     method: 'POST',
                     headers: {
@@ -49,13 +50,15 @@ export default function ImageUpload({
                 uploadedUrls.push(data.url)
             } catch (error) {
                 console.error('Error uploading image:', error)
-                alert(`Error al subir ${file.name}`)
+                toast.error(`Error al subir ${file.name}`, { id: loadingToast })
             }
         }
 
         onChange([...value, ...uploadedUrls])
         setUploading(false)
         setUploadProgress(0)
+
+        toast.success(`${uploadedUrls.length} imagen(es) subida(s) exitosamente`, { id: loadingToast })
     }, [value, onChange])
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({

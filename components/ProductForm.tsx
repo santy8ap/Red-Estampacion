@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import ImageUpload from './ImageUpload'
 
 type ProductFormProps = {
@@ -81,17 +82,17 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
         e.preventDefault()
 
         if (!validateForm()) {
-            alert('Por favor corrige los errores en el formulario')
+            toast.error('Por favor corrige los errores en el formulario')
             return
         }
 
+        const loadingToast = toast.loading(isEdit ? 'Actualizando producto...' : 'Creando producto...')
         setLoading(true)
 
         try {
             const url = isEdit ? `/api/products/${product.id}` : '/api/products'
             const method = isEdit ? 'PUT' : 'POST'
 
-            // Convertir arrays a strings para SQLite
             const dataToSend = {
                 ...formData,
                 images: JSON.stringify(formData.images),
@@ -111,12 +112,16 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
                 throw new Error('Error al guardar producto')
             }
 
-            alert(isEdit ? '✅ Producto actualizado exitosamente' : '✅ Producto creado exitosamente')
+            toast.success(
+                isEdit ? '✅ Producto actualizado exitosamente' : '✅ Producto creado exitosamente',
+                { id: loadingToast }
+            )
+
             router.push('/admin')
             router.refresh()
         } catch (error) {
             console.error('Error:', error)
-            alert('❌ Error al guardar el producto')
+            toast.error('❌ Error al guardar el producto', { id: loadingToast })
         } finally {
             setLoading(false)
         }
