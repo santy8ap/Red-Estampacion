@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../auth/[...nextauth]/route'
+import { productSchema, filterSchema, validateRequest } from '@/lib/validations/schemas'
 
 // Helper para parsear JSON
 function parseJSON(str: string): any {
@@ -12,10 +13,17 @@ function parseJSON(str: string): any {
   }
 }
 
-// GET - Listar productos con filtros
+// GET - Listar productos con filtros y paginación
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
+    
+    // Paginación
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '12')
+    const skip = (page - 1) * limit
+
+    // Filtros
     const category = searchParams.get('category')
     const color = searchParams.get('color')
     const size = searchParams.get('size')
@@ -33,8 +41,14 @@ export async function GET(request: NextRequest) {
       ]
     }
 
+    // Total de productos
+    const total = await prisma.product.count({ where })
+
+    // Productos paginados
     let products = await prisma.product.findMany({
       where,
+      skip,
+      take: limit,
       orderBy: { createdAt: 'desc' }
     })
 
@@ -60,7 +74,16 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    return NextResponse.json(parsedProducts)
+    return NextResponse.json({
+      products: parsedProducts,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: page < Math.ceil(total / limit)
+      }
+    })
   } catch (error) {
     console.error('Error fetching products:', error)
     return NextResponse.json(
@@ -70,7 +93,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Crear producto (solo admin)
+// POST - Crear producto con validación Yup
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -83,35 +106,33 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const {
-      name,
-      description,
-      price,
-      images,
-      category,
-      sizes,
-      colors,
-      stock,
-      featured,
-      active
-    } = body
+
+    // Validar con Yup
+    const validation = await validateRequest(productSchema, body)
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Datos inválidos', details: validation.errors },
+        { status: 400 }
+      )
+    }
+
+    const validData = validation.data
 
     const product = await prisma.product.create({
       data: {
-        name,
-        description,
-        price: parseFloat(price),
-        images: typeof images === 'string' ? images : JSON.stringify(images),
-        category,
-        sizes: typeof sizes === 'string' ? sizes : JSON.stringify(sizes),
-        colors: typeof colors === 'string' ? colors : JSON.stringify(colors),
-        stock: parseInt(stock),
-        featured: featured || false,
-        active: active !== undefined ? active : true
+        name: validData.name,
+        description: validData.description,
+        price: parseFloat(validData.price.toString()),
+        images: typeof validData.images === 'string' ? validData.images : JSON.stringify(validData.images),
+        category: validData.category,
+        sizes: typeof validData.sizes === 'string' ? validData.sizes : JSON.stringify(validData.sizes),
+        colors: typeof validData.colors === 'string' ? validData.colors : JSON.stringify(validData.colors),
+        stock: parseInt(validData.stock.toString()),
+        featured: validData.featured || false,
+        active: validData.active !== undefined ? validData.active : true
       }
     })
 
-    // Devolver con campos parseados
     return NextResponse.json({
       ...product,
       images: parseJSON(product.images),

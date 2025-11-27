@@ -1,94 +1,154 @@
 import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
 async function main() {
   console.log('🌱 Iniciando seed...')
 
+  // Crear usuario admin
+  const adminEmail = 'admin@redestampacion.com'
+  const existingAdmin = await prisma.user.findUnique({
+    where: { email: adminEmail }
+  })
+
+  let adminUser
+  if (!existingAdmin) {
+    adminUser = await prisma.user.create({
+      data: {
+        email: adminEmail,
+        name: 'Admin',
+        role: 'ADMIN',
+        emailVerified: new Date(),
+      }
+    })
+    console.log('✅ Usuario admin creado')
+  } else {
+    adminUser = existingAdmin
+    console.log('ℹ️ Usuario admin ya existe')
+  }
+
+  // Crear productos de prueba
   const products = [
     {
-      name: 'Camisa Vintage Rock',
-      description: 'Camisa de algodón 100% con estampado vintage de bandas de rock clásicas. Perfecta para los amantes del rock.',
+      name: 'Camiseta Básica Negra',
+      description: 'Camiseta de algodón 100% premium, perfecta para el día a día',
       price: 29.99,
+      images: JSON.stringify(['https://picsum.photos/500/500?random=1']),
+      category: 'Casual',
+      sizes: JSON.stringify(['S', 'M', 'L', 'XL']),
+      colors: JSON.stringify(['Negro', 'Blanco', 'Gris']),
+      stock: 100,
+      featured: true,
+      active: true
+    },
+    {
+      name: 'Sudadera con Capucha',
+      description: 'Sudadera cómoda y abrigada, ideal para el invierno',
+      price: 49.99,
+      images: JSON.stringify(['https://picsum.photos/500/500?random=2']),
+      category: 'Casual',
+      sizes: JSON.stringify(['S', 'M', 'L', 'XL', 'XXL']),
+      colors: JSON.stringify(['Azul', 'Negro', 'Gris']),
+      stock: 75,
+      featured: true,
+      active: true
+    },
+    {
+      name: 'Polo Deportivo',
+      description: 'Polo técnico con tecnología dry-fit para mantener la frescura',
+      price: 34.99,
+      images: JSON.stringify(['https://picsum.photos/500/500?random=3']),
+      category: 'Deportiva',
+      sizes: JSON.stringify(['S', 'M', 'L', 'XL']),
+      colors: JSON.stringify(['Azul', 'Rojo', 'Verde']),
+      stock: 60,
+      featured: true,
+      active: true
+    },
+    {
+      name: 'Camisa Formal Blanca',
+      description: 'Camisa elegante para ocasiones especiales',
+      price: 59.99,
+      images: JSON.stringify(['https://picsum.photos/500/500?random=4']),
+      category: 'Formal',
+      sizes: JSON.stringify(['S', 'M', 'L', 'XL']),
+      colors: JSON.stringify(['Blanco', 'Azul', 'Negro']),
+      stock: 40,
+      featured: false,
+      active: true
+    },
+    {
+      name: 'Camiseta Vintage Rock',
+      description: 'Diseño retro inspirado en las bandas clásicas',
+      price: 39.99,
+      images: JSON.stringify(['https://picsum.photos/500/500?random=5']),
       category: 'Vintage',
       sizes: JSON.stringify(['S', 'M', 'L', 'XL']),
       colors: JSON.stringify(['Negro', 'Gris']),
       stock: 50,
       featured: true,
-      images: JSON.stringify(['https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=500'])
+      active: true
     },
     {
-      name: 'Camisa Deportiva Running',
-      description: 'Camisa técnica transpirable ideal para running y deportes de alta intensidad.',
-      price: 39.99,
-      category: 'Deportiva',
-      sizes: JSON.stringify(['S', 'M', 'L', 'XL', 'XXL']),
-      colors: JSON.stringify(['Azul', 'Negro', 'Rojo']),
-      stock: 75,
-      featured: true,
-      images: JSON.stringify(['https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=500'])
-    },
-    {
-      name: 'Camisa Casual Básica',
-      description: 'Camisa casual básica de algodón, perfecta para el día a día.',
-      price: 19.99,
-      category: 'Casual',
-      sizes: JSON.stringify(['XS', 'S', 'M', 'L', 'XL']),
-      colors: JSON.stringify(['Blanco', 'Negro', 'Gris', 'Azul']),
-      stock: 100,
-      featured: false,
-      images: JSON.stringify(['https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500'])
-    },
-    {
-      name: 'Camisa Formal Elegante',
-      description: 'Camisa formal de corte elegante, ideal para ocasiones especiales.',
-      price: 49.99,
-      category: 'Formal',
-      sizes: JSON.stringify(['S', 'M', 'L', 'XL']),
-      colors: JSON.stringify(['Blanco', 'Azul']),
-      stock: 30,
-      featured: true,
-      images: JSON.stringify(['https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=500'])
-    },
-    {
-      name: 'Camisa Estampada Tropical',
-      description: 'Camisa con estampado tropical vibrante. Perfecta para el verano.',
-      price: 34.99,
+      name: 'Camiseta Estampada Tropical',
+      description: 'Diseño tropical perfecto para el verano',
+      price: 32.99,
+      images: JSON.stringify(['https://picsum.photos/500/500?random=6']),
       category: 'Estampada',
       sizes: JSON.stringify(['S', 'M', 'L', 'XL']),
-      colors: JSON.stringify(['Verde', 'Azul', 'Amarillo']),
-      stock: 45,
+      colors: JSON.stringify(['Blanco', 'Amarillo', 'Verde']),
+      stock: 80,
       featured: true,
-      images: JSON.stringify(['https://images.unsplash.com/photo-1622445275576-721325763afe?w=500'])
+      active: true
     },
     {
-      name: 'Camisa Casual Rayas',
-      description: 'Camisa casual con rayas clásicas. Estilo atemporal.',
-      price: 24.99,
-      category: 'Casual',
-      sizes: JSON.stringify(['S', 'M', 'L', 'XL']),
-      colors: JSON.stringify(['Azul', 'Gris']),
-      stock: 60,
+      name: 'Joggers Deportivos',
+      description: 'Pantalones cómodos para entrenar o relajarse',
+      price: 44.99,
+      images: JSON.stringify(['https://picsum.photos/500/500?random=7']),
+      category: 'Deportiva',
+      sizes: JSON.stringify(['S', 'M', 'L', 'XL', 'XXL']),
+      colors: JSON.stringify(['Negro', 'Gris', 'Azul']),
+      stock: 65,
       featured: false,
-      images: JSON.stringify(['https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=500'])
+      active: true
     },
+    {
+      name: 'Blazer Casual',
+      description: 'Blazer moderno para un look semi-formal',
+      price: 89.99,
+      images: JSON.stringify(['https://picsum.photos/500/500?random=8']),
+      category: 'Formal',
+      sizes: JSON.stringify(['S', 'M', 'L', 'XL']),
+      colors: JSON.stringify(['Negro', 'Gris', 'Azul']),
+      stock: 30,
+      featured: true,
+      active: true
+    }
   ]
 
-  console.log('📦 Creando productos...')
+  console.log('🌱 Creando productos...')
   
   for (const product of products) {
-    await prisma.product.create({
-      data: product
+    const exists = await prisma.product.findFirst({
+      where: { name: product.name }
     })
-    console.log(`✅ Creado: ${product.name}`)
+
+    if (!exists) {
+      await prisma.product.create({ data: product })
+      console.log(`✅ Producto creado: ${product.name}`)
+    } else {
+      console.log(`ℹ️ Producto ya existe: ${product.name}`)
+    }
   }
 
-  console.log('✨ Seed completado!')
+  console.log('🎉 Seed completado exitosamente!')
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Error:', e)
+    console.error('❌ Error en seed:', e)
     process.exit(1)
   })
   .finally(async () => {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../auth/[...nextauth]/route'
+import { sendOrderConfirmation } from '@/lib/email/mailer'
 
 // GET - Listar órdenes del usuario
 export async function GET(request: NextRequest) {
@@ -108,6 +109,15 @@ export async function POST(request: NextRequest) {
           }
         }
       })
+    }
+
+    // 📧 ENVIAR EMAIL DE CONFIRMACIÓN
+    try {
+      await sendOrderConfirmation(shipping.email, order)
+      console.log('✅ Email de confirmación enviado')
+    } catch (emailError) {
+      console.error('❌ Error enviando email:', emailError)
+      // No fallar la orden si el email falla
     }
 
     return NextResponse.json(order, { status: 201 })

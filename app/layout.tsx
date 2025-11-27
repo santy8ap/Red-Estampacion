@@ -1,38 +1,46 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import './globals.css'
-import Navbar from '@/components/Navbar'
-import Footer from '@/components/Footer'
-import Providers from '@/components/Providers'
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+import Providers from "@/components/Providers";
+import { Toaster } from "sonner";
 
-const inter = Inter({
-  subsets: ['latin'],
-  display: 'swap',
-})
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
-  title: 'Red Estampación - Tienda de Camisas Premium',
-  description: 'Las mejores camisas estampadas con diseños únicos. Calidad premium y estilo incomparable.',
+  title: "Red Estampación - Ropa personalizada",
+  description: "Tu tienda de ropa estampada favorita",
+};
+
+// Inicializar cron jobs en el servidor
+if (typeof window === 'undefined') {
+  import('@/lib/cron/jobs').then(({ initCronJobs }) => {
+    initCronJobs()
+  }).catch(console.error)
 }
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode
-}) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html lang="es" suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning>
+    <html lang="es">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
         <Providers>
-          <div className="min-h-screen flex flex-col bg-white">
-            <Navbar />
-            <main className="flex-1 pt-16">
-              {children}
-            </main>
-            <Footer />
-          </div>
+          {children}
+          <Toaster position="top-right" richColors />
         </Providers>
       </body>
     </html>
-  )
+  );
 }

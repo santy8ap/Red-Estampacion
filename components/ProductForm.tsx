@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import ImageUpload from './ImageUpload'
+import { productSchema } from '@/lib/validations/schemas'
+import * as yup from 'yup'
 
 type ProductFormProps = {
     product?: any
@@ -17,8 +19,8 @@ const COLORS = ['Blanco', 'Negro', 'Gris', 'Azul', 'Rojo', 'Verde', 'Amarillo', 
 export default function ProductForm({ product, isEdit = false }: ProductFormProps) {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
+    const [errors, setErrors] = useState<Record<string, string>>({})
 
-    // Parsear las imágenes, tallas y colores si vienen como string
     const parseField = (field: any) => {
         if (typeof field === 'string') {
             try {
@@ -43,21 +45,25 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
         colors: parseField(product?.colors),
     })
 
-    const [errors, setErrors] = useState<any>({})
-
-    const validateForm = () => {
-        const newErrors: any = {}
-
-        if (!formData.name.trim()) newErrors.name = 'El nombre es requerido'
-        if (!formData.description.trim()) newErrors.description = 'La descripción es requerida'
-        if (!formData.price || formData.price <= 0) newErrors.price = 'El precio debe ser mayor a 0'
-        if (!formData.stock || formData.stock < 0) newErrors.stock = 'El stock no puede ser negativo'
-        if (formData.images.length === 0) newErrors.images = 'Agrega al menos una imagen'
-        if (formData.sizes.length === 0) newErrors.sizes = 'Selecciona al menos una talla'
-        if (formData.colors.length === 0) newErrors.colors = 'Selecciona al menos un color'
-
-        setErrors(newErrors)
-        return Object.keys(newErrors).length === 0
+    const validateForm = async () => {
+        try {
+            await productSchema.validate(formData, { abortEarly: false })
+            setErrors({})
+            return true
+        } catch (error) {
+            if (error instanceof yup.ValidationError) {
+                const newErrors: Record<string, string> = {}
+                error.inner.forEach((err) => {
+                    if (err.path) {
+                        newErrors[err.path] = err.message
+                    }
+                })
+                setErrors(newErrors)
+                toast.error('Por favor corrige los errores en el formulario')
+                return false
+            }
+            return false
+        }
     }
 
     const toggleSize = (size: string) => {
@@ -67,6 +73,10 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
                 ? prev.sizes.filter(s => s !== size)
                 : [...prev.sizes, size]
         }))
+        // Limpiar error de sizes
+        if (errors.sizes) {
+            setErrors(prev => ({ ...prev, sizes: '' }))
+        }
     }
 
     const toggleColor = (color: string) => {
@@ -76,13 +86,16 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
                 ? prev.colors.filter(c => c !== color)
                 : [...prev.colors, color]
         }))
+        // Limpiar error de colors
+        if (errors.colors) {
+            setErrors(prev => ({ ...prev, colors: '' }))
+        }
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        if (!validateForm()) {
-            toast.error('Por favor corrige los errores en el formulario')
+        if (!(await validateForm())) {
             return
         }
 
@@ -95,6 +108,8 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
 
             const dataToSend = {
                 ...formData,
+                price: parseFloat(formData.price.toString()),
+                stock: parseInt(formData.stock.toString()),
                 images: JSON.stringify(formData.images),
                 sizes: JSON.stringify(formData.sizes),
                 colors: JSON.stringify(formData.colors),
@@ -108,8 +123,10 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
                 body: JSON.stringify(dataToSend),
             })
 
+            const data = await response.json()
+
             if (!response.ok) {
-                throw new Error('Error al guardar producto')
+                throw new Error(data.error || 'Error al guardar producto')
             }
 
             toast.success(
@@ -119,17 +136,16 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
 
             router.push('/admin')
             router.refresh()
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error:', error)
-            toast.error('❌ Error al guardar el producto', { id: loadingToast })
+            toast.error(error.message || '❌ Error al guardar el producto', { id: loadingToast })
         } finally {
             setLoading(false)
         }
     }
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-xl shadow-lg">
-            {/* Header */}
+        <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-xl shadow-lg" noValidate>
             <div className="border-b pb-4">
                 <h2 className="text-2xl font-bold text-gray-900">
                     {isEdit ? 'Editar Producto' : 'Nuevo Producto'}
@@ -139,11 +155,13 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
                 </p>
             </div>
 
-            {/* Imágenes */}
             <div>
                 <ImageUpload
                     value={formData.images}
-                    onChange={(urls) => setFormData({ ...formData, images: urls })}
+                    onChange={(urls) => {
+                        setFormData({ ...formData, images: urls })
+                        if (errors.images) setErrors(prev => ({ ...prev, images: '' }))
+                    }}
                     maxFiles={8}
                 />
                 {errors.images && (
@@ -151,9 +169,7 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
                 )}
             </div>
 
-            {/* Información básica */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Nombre */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                         Nombre del producto *
@@ -161,9 +177,13 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
                     <input
                         type="text"
                         value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${errors.name ? 'border-red-500' : 'border-gray-300'
-                            }`}
+                        onChange={(e) => {
+                            setFormData({ ...formData, name: e.target.value })
+                            if (errors.name) setErrors(prev => ({ ...prev, name: '' }))
+                        }}
+                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${
+                            errors.name ? 'border-red-500' : 'border-gray-300'
+                        }`}
                         placeholder="Ej: Camisa estampada vintage"
                     />
                     {errors.name && (
@@ -171,7 +191,6 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
                     )}
                 </div>
 
-                {/* Categoría */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                         Categoría *
@@ -188,17 +207,20 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
                 </div>
             </div>
 
-            {/* Descripción */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                     Descripción *
                 </label>
                 <textarea
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={(e) => {
+                        setFormData({ ...formData, description: e.target.value })
+                        if (errors.description) setErrors(prev => ({ ...prev, description: '' }))
+                    }}
                     rows={4}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${errors.description ? 'border-red-500' : 'border-gray-300'
-                        }`}
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${
+                        errors.description ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="Describe las características del producto..."
                 />
                 {errors.description && (
@@ -206,7 +228,6 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
                 )}
             </div>
 
-            {/* Precio y Stock */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -220,9 +241,13 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
                             type="number"
                             step="0.01"
                             value={formData.price}
-                            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                            className={`w-full pl-8 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${errors.price ? 'border-red-500' : 'border-gray-300'
-                                }`}
+                            onChange={(e) => {
+                                setFormData({ ...formData, price: e.target.value })
+                                if (errors.price) setErrors(prev => ({ ...prev, price: '' }))
+                            }}
+                            className={`w-full pl-8 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${
+                                errors.price ? 'border-red-500' : 'border-gray-300'
+                            }`}
                             placeholder="29.99"
                         />
                     </div>
@@ -238,9 +263,13 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
                     <input
                         type="number"
                         value={formData.stock}
-                        onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${errors.stock ? 'border-red-500' : 'border-gray-300'
-                            }`}
+                        onChange={(e) => {
+                            setFormData({ ...formData, stock: e.target.value })
+                            if (errors.stock) setErrors(prev => ({ ...prev, stock: '' }))
+                        }}
+                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${
+                            errors.stock ? 'border-red-500' : 'border-gray-300'
+                        }`}
                         placeholder="100"
                     />
                     {errors.stock && (
@@ -275,7 +304,6 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
                 </div>
             </div>
 
-            {/* Tallas */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                     Tallas disponibles *
@@ -286,10 +314,11 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
                             key={size}
                             type="button"
                             onClick={() => toggleSize(size)}
-                            className={`px-4 py-2 rounded-lg border-2 font-medium transition ${formData.sizes.includes(size)
+                            className={`px-4 py-2 rounded-lg border-2 font-medium transition ${
+                                formData.sizes.includes(size)
                                     ? 'bg-red-500 text-white border-red-500'
                                     : 'bg-white text-gray-700 border-gray-300 hover:border-red-400'
-                                }`}
+                            }`}
                         >
                             {size}
                         </button>
@@ -300,7 +329,6 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
                 )}
             </div>
 
-            {/* Colores */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                     Colores disponibles *
@@ -311,10 +339,11 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
                             key={color}
                             type="button"
                             onClick={() => toggleColor(color)}
-                            className={`px-4 py-2 rounded-lg border-2 font-medium transition ${formData.colors.includes(color)
+                            className={`px-4 py-2 rounded-lg border-2 font-medium transition ${
+                                formData.colors.includes(color)
                                     ? 'bg-red-500 text-white border-red-500'
                                     : 'bg-white text-gray-700 border-gray-300 hover:border-red-400'
-                                }`}
+                            }`}
                         >
                             {color}
                         </button>
@@ -325,7 +354,6 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
                 )}
             </div>
 
-            {/* Botones */}
             <div className="flex gap-4 pt-6 border-t">
                 <button
                     type="submit"
