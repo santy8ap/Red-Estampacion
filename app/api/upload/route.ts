@@ -11,13 +11,23 @@ cloudinary.config({
 
 export async function POST(request: NextRequest) {
   try {
-    // Verificar autenticación (opcional, pero recomendado para admin)
+    // Verificar autenticación
     const session = await getServerSession(authOptions)
-    
+
     if (!session) {
+      console.error('❌ Upload failed: No session')
       return NextResponse.json(
-        { error: 'No autorizado' },
+        { error: 'No autorizado. Inicia sesión para subir imágenes.' },
         { status: 401 }
+      )
+    }
+
+    // Verificar que sea admin
+    if (session.user.role !== 'ADMIN') {
+      console.error('❌ Upload failed: User is not admin')
+      return NextResponse.json(
+        { error: 'Solo administradores pueden subir imágenes.' },
+        { status: 403 }
       )
     }
 
@@ -31,6 +41,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validar que sea una imagen válida (base64)
+    if (!image.startsWith('data:image/')) {
+      return NextResponse.json(
+        { error: 'Formato de imagen inválido' },
+        { status: 400 }
+      )
+    }
+
+    console.log(`📤 Uploading image to Cloudinary folder: ${folder}`)
+
     // Subir a Cloudinary con optimizaciones
     const uploadResponse = await cloudinary.uploader.upload(image, {
       folder: folder,
@@ -39,8 +59,13 @@ export async function POST(request: NextRequest) {
         { width: 1200, height: 1200, crop: 'limit' },
         { quality: 'auto:good' },
         { fetch_format: 'auto' }
-      ]
+      ],
+      // Opciones adicionales para mejor gestión
+      unique_filename: true,
+      overwrite: false,
     })
+
+    console.log(`✅ Image uploaded successfully: ${uploadResponse.public_id}`)
 
     return NextResponse.json({
       url: uploadResponse.secure_url,
@@ -49,10 +74,21 @@ export async function POST(request: NextRequest) {
       height: uploadResponse.height,
       format: uploadResponse.format
     })
-  } catch (error) {
-    console.error('Error uploading to Cloudinary:', error)
+  } catch (error: any) {
+    console.error('❌ Error uploading to Cloudinary:', error)
+
+    // Provide more specific error messages
+    let errorMessage = 'Error al subir imagen'
+    if (error.message?.includes('Invalid image file')) {
+      errorMessage = 'Archivo de imagen inválido'
+    } else if (error.message?.includes('File size too large')) {
+      errorMessage = 'La imagen es demasiado grande (máx 10MB)'
+    } else if (error.http_code === 401) {
+      errorMessage = 'Credenciales de Cloudinary inválidas'
+    }
+
     return NextResponse.json(
-      { error: 'Error al subir imagen' },
+      { error: errorMessage, details: error.message },
       { status: 500 }
     )
   }
@@ -62,7 +98,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    
+
     if (!session || session.user.role !== 'ADMIN') {
       return NextResponse.json(
         { error: 'No autorizado' },

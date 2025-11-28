@@ -7,7 +7,7 @@ import HeroSection from '@/components/HeroSection'
 import FeaturesSection from '@/components/FeaturesSection'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
-import Loading from '@/components/Loading'
+import { ProductGridSkeleton } from '@/components/Skeletons'
 import { motion } from 'framer-motion'
 import { ArrowRight, Sparkles } from 'lucide-react'
 
@@ -83,9 +83,7 @@ export default function Home() {
 
           {/* Products Grid */}
           {loading ? (
-            <div className="py-16">
-              <Loading />
-            </div>
+            <ProductGridSkeleton count={6} />
           ) : featuredProducts.length === 0 ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}

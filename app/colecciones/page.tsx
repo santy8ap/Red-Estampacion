@@ -52,28 +52,28 @@ export default function ColeccionesPage() {
                 id: 1,
                 name: 'Colección Verano 2024',
                 description: 'Frescura y estilo para los días más calurosos del año. Ropa cómoda y colorida.',
-                image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&h=400&fit=crop',
+                image: 'https://images.unsplash.com/photo-1523359346063-d879354c0ea5?q=80&w=1200&auto=format&fit=crop',
                 products: 15
             },
             {
                 id: 2,
                 name: 'Urban Style',
                 description: 'Moda urbana contemporánea para el día a día. Diseños modernos y versátiles.',
-                image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&h=400&fit=crop',
+                image: 'https://images.unsplash.com/photo-1620799140188-3b2a02fd9a77?q=80&w=1200&auto=format&fit=crop',
                 products: 22
             },
             {
                 id: 3,
                 name: 'Deportiva Pro',
                 description: 'Ropa técnica para alto rendimiento. Perfecta para tus entrenamientos.',
-                image: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=600&h=400&fit=crop',
+                image: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=1200&auto=format&fit=crop',
                 products: 18
             },
             {
                 id: 4,
                 name: 'Vintage Collection',
                 description: 'Los clásicos nunca pasan de moda. Diseños retro con toque contemporáneo.',
-                image: 'https://images.unsplash.com/photo-1515562141207-6811bcdd56cd?w=600&h=400&fit=crop',
+                image: 'https://images.unsplash.com/photo-1568447350776-3695690a443c?q=80&w=1200&auto=format&fit=crop',
                 products: 12
             }
         ]

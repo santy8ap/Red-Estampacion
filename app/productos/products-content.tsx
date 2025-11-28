@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import ProductCard from '@/components/ProductCard'
-import Loading from '@/components/Loading'
+import { ProductGridSkeleton } from '@/components/Skeletons'
 import { Search, ChevronDown, X, Filter } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -11,11 +11,11 @@ const CATEGORIES = ['Todas', 'Casual', 'Deportiva', 'Formal', 'Vintage', 'Estamp
 const COLORS = ['Todos', 'Blanco', 'Negro', 'Gris', 'Azul', 'Rojo', 'Verde', 'Amarillo']
 const SIZES = ['Todas', 'XS', 'S', 'M', 'L', 'XL', 'XXL']
 const SORT_OPTIONS = [
-  { value: 'newest', label: 'Más Nuevos' },
-  { value: 'price-low', label: 'Precio: Menor a Mayor' },
-  { value: 'price-high', label: 'Precio: Mayor a Menor' },
-  { value: 'popular', label: 'Más Populares' },
-  { value: 'rating', label: 'Mejor Calificación' }
+    { value: 'newest', label: 'Más Nuevos' },
+    { value: 'price-low', label: 'Precio: Menor a Mayor' },
+    { value: 'price-high', label: 'Precio: Mayor a Menor' },
+    { value: 'popular', label: 'Más Populares' },
+    { value: 'rating', label: 'Mejor Calificación' }
 ]
 
 interface Product {
@@ -85,7 +85,7 @@ export default function ProductsContent() {
 
             const response = await fetch(`/api/products?${params}`)
             if (!response.ok) throw new Error('Error al cargar productos')
-            
+
             const data = await response.json()
             const productsList = data.products || (Array.isArray(data) ? data : [])
             setProducts(productsList)
@@ -113,7 +113,7 @@ export default function ProductsContent() {
     return (
         <div className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
             {/* Header with Active Filters */}
-            <motion.div 
+            <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="mb-8 flex items-center justify-between flex-wrap gap-4"
@@ -123,7 +123,7 @@ export default function ProductsContent() {
                         Mostrando <span className="text-red-600 font-bold text-lg">{products.length}</span> productos
                     </p>
                 </div>
-                
+
                 {activeFiltersCount > 0 && (
                     <motion.button
                         initial={{ scale: 0.8 }}
@@ -154,8 +154,8 @@ export default function ProductsContent() {
                             </span>
                         )}
                     </div>
-                    <ChevronDown 
-                        className={`w-5 h-5 transition-transform ${showFilters ? 'rotate-180' : ''}`} 
+                    <ChevronDown
+                        className={`w-5 h-5 transition-transform ${showFilters ? 'rotate-180' : ''}`}
                     />
                 </motion.button>
 
@@ -180,7 +180,7 @@ export default function ProductsContent() {
                                         placeholder="Ej: camiseta, suéter..."
                                         value={filters.search}
                                         onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
+                                        className="w-full pl-10 pr-4 py-3 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition hover:border-gray-400"
                                     />
                                 </div>
                             </div>
@@ -195,7 +195,7 @@ export default function ProductsContent() {
                                     <select
                                         value={filters.category}
                                         onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition bg-white cursor-pointer hover:bg-gray-50"
+                                        className="w-full px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition cursor-pointer hover:bg-gray-50"
                                     >
                                         {CATEGORIES.map(cat => (
                                             <option key={cat} value={cat}>{cat}</option>
@@ -211,7 +211,7 @@ export default function ProductsContent() {
                                     <select
                                         value={filters.color}
                                         onChange={(e) => setFilters({ ...filters, color: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition bg-white cursor-pointer hover:bg-gray-50"
+                                        className="w-full px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition cursor-pointer hover:bg-gray-50"
                                     >
                                         {COLORS.map(color => (
                                             <option key={color} value={color}>{color}</option>
@@ -227,7 +227,7 @@ export default function ProductsContent() {
                                     <select
                                         value={filters.size}
                                         onChange={(e) => setFilters({ ...filters, size: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition bg-white cursor-pointer hover:bg-gray-50"
+                                        className="w-full px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition cursor-pointer hover:bg-gray-50"
                                     >
                                         {SIZES.map(size => (
                                             <option key={size} value={size}>{size}</option>
@@ -258,7 +258,7 @@ export default function ProductsContent() {
                                     <select
                                         value={filters.sort}
                                         onChange={(e) => setFilters({ ...filters, sort: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition bg-white cursor-pointer hover:bg-gray-50"
+                                        className="w-full px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition cursor-pointer hover:bg-gray-50"
                                     >
                                         {SORT_OPTIONS.map(opt => (
                                             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -273,11 +273,9 @@ export default function ProductsContent() {
 
             {/* Products Grid */}
             {loading ? (
-                <div className="py-16">
-                    <Loading />
-                </div>
+                <ProductGridSkeleton count={9} />
             ) : error ? (
-                <motion.div 
+                <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     className="bg-red-50 border-2 border-red-200 rounded-lg p-8 text-center"
@@ -309,7 +307,7 @@ export default function ProductsContent() {
                     </div>
                 </motion.div>
             ) : (
-                <motion.div 
+                <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     className="bg-gradient-to-br from-gray-100 to-gray-50 rounded-lg p-12 text-center border-2 border-dashed border-gray-300"

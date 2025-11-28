@@ -8,6 +8,7 @@ import { useWishlist } from '@/context/WishlistContext'
 import { useCart } from '@/context/CartContext'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
+import QuickViewModal from './QuickViewModal'
 
 interface ProductCardProps {
   product: {
@@ -26,9 +27,10 @@ interface ProductCardProps {
 export default function ProductCard({ product }: ProductCardProps) {
   const [imgError, setImgError] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
+  const [showQuickView, setShowQuickView] = useState(false)
   const { isFavorite, addItem: addToWishlist, removeItem: removeFromWishlist } = useWishlist()
   const { addItem: addToCart } = useCart()
-  
+
   const favorite = isFavorite(product.id)
 
   const getImageUrl = () => {
@@ -50,7 +52,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   const imageUrl = getImageUrl()
   const isOutOfStock = product.stock === 0
   const hasDiscount = product.originalPrice && product.originalPrice > product.price
-  const discountPercentage = hasDiscount 
+  const discountPercentage = hasDiscount
     ? Math.round((((product.originalPrice || 0) - product.price) / (product.originalPrice || 1)) * 100)
     : 0
   const lowStock = product.stock && product.stock > 0 && product.stock <= 5
@@ -58,7 +60,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   const handleToggleFavorite = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    
+
     if (favorite) {
       removeFromWishlist(product.id)
       toast.success('Removido de favoritos')
@@ -76,7 +78,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    
+
     if (isOutOfStock) {
       toast.error('Producto agotado')
       return
@@ -101,16 +103,16 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Link href={`/productos/${product.id}`} className="block h-full">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         whileHover={{ y: -8 }}
         className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 h-full flex flex-col cursor-pointer border border-gray-100"
       >
         {/* Image Container */}
-        <motion.div 
+        <motion.div
           className="relative h-64 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 group"
-          onMouseEnter={() => setIsHovered(true)} 
+          onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
           <Image
@@ -126,7 +128,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           {/* Badges */}
           <div className="absolute top-3 left-3 flex flex-col gap-2 z-10">
             {product.featured && (
-              <motion.div 
+              <motion.div
                 initial={{ scale: 0.8 }}
                 animate={{ scale: 1 }}
                 className="bg-yellow-400 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg"
@@ -136,7 +138,7 @@ export default function ProductCard({ product }: ProductCardProps) {
               </motion.div>
             )}
             {discountPercentage > 0 && (
-              <motion.div 
+              <motion.div
                 initial={{ scale: 0.8 }}
                 animate={{ scale: 1 }}
                 className="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg"
@@ -145,7 +147,7 @@ export default function ProductCard({ product }: ProductCardProps) {
               </motion.div>
             )}
             {lowStock && !isOutOfStock && (
-              <motion.div 
+              <motion.div
                 initial={{ scale: 0.8 }}
                 animate={{ scale: 1 }}
                 className="bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg"
@@ -161,7 +163,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
           {/* Stock Indicator */}
           {isOutOfStock && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="absolute inset-0 bg-black/60 flex items-center justify-center"
@@ -172,7 +174,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
           {/* Action Buttons Overlay */}
           {isHovered && !isOutOfStock && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent flex items-end justify-center gap-3 p-4"
@@ -181,11 +183,10 @@ export default function ProductCard({ product }: ProductCardProps) {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={handleToggleFavorite}
-                className={`p-3 rounded-full transition transform shadow-lg ${
-                  favorite
-                    ? 'bg-red-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-red-50'
-                }`}
+                className={`p-3 rounded-full transition transform shadow-lg ${favorite
+                  ? 'bg-red-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-red-50'
+                  }`}
                 title={favorite ? 'Remover de favoritos' : 'Agregar a favoritos'}
               >
                 <Heart className="w-6 h-6" fill={favorite ? 'currentColor' : 'none'} />
@@ -202,8 +203,13 @@ export default function ProductCard({ product }: ProductCardProps) {
               <motion.button
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setShowQuickView(true)
+                }}
                 className="p-3 rounded-full bg-white text-gray-900 hover:bg-gray-100 transition transform shadow-lg"
-                title="Ver detalles"
+                title="Vista rápida"
               >
                 <Eye className="w-6 h-6" />
               </motion.button>
@@ -262,6 +268,13 @@ export default function ProductCard({ product }: ProductCardProps) {
           </motion.div>
         </div>
       </motion.div>
+
+      {/* QuickView Modal */}
+      <QuickViewModal
+        product={product}
+        isOpen={showQuickView}
+        onClose={() => setShowQuickView(false)}
+      />
     </Link>
   )
 }

@@ -47,34 +47,51 @@ export default function ImageUpload({
             setUploadProgress(((i + 1) / acceptedFiles.length) * 100)
 
             try {
-                const formData = new FormData()
-                formData.append('file', file)
-                formData.append('upload_preset', 'red_estampacion')
-                formData.append('cloud_name', process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '')
+                // Convert file to base64
+                const reader = new FileReader()
+                const base64Promise = new Promise<string>((resolve, reject) => {
+                    reader.onload = () => resolve(reader.result as string)
+                    reader.onerror = reject
+                    reader.readAsDataURL(file)
+                })
 
-                const response = await fetch(
-                    `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-                    {
-                        method: 'POST',
-                        body: formData,
-                    }
-                )
+                const base64 = await base64Promise
 
-                if (!response.ok) throw new Error('Error al subir imagen')
+                // Upload via our API route
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        image: base64,
+                        folder: 'red-estampacion/products'
+                    }),
+                })
+
+                if (!response.ok) {
+                    const errorData = await response.json()
+                    throw new Error(errorData.error || 'Error al subir imagen')
+                }
 
                 const data = await response.json()
-                uploadedUrls.push(data.secure_url)
+                uploadedUrls.push(data.url)
+                toast.success(`✅ ${file.name} subida`, { duration: 2000 })
             } catch (error) {
                 console.error('Error uploading image:', error)
-                toast.error(`Error al subir ${file.name}`)
+                toast.error(`❌ Error al subir ${file.name}`)
             }
         }
 
-        onChange([...value, ...uploadedUrls])
+        if (uploadedUrls.length > 0) {
+            onChange([...value, ...uploadedUrls])
+            toast.success(`${uploadedUrls.length} imagen(es) subida(s) exitosamente`, { id: loadingToast })
+        } else {
+            toast.error('No se pudieron subir las imágenes', { id: loadingToast })
+        }
+
         setUploading(false)
         setUploadProgress(0)
-
-        toast.success(`${uploadedUrls.length} imagen(es) subida(s)`, { id: loadingToast })
     }, [value, onChange, maxFiles])
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({

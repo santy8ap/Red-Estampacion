@@ -21,7 +21,9 @@ import {
     ChevronDown,
     CheckCircle,
     AlertCircle,
-    ArrowUpDown
+    ArrowUpDown,
+    Home,
+    ExternalLink
 } from 'lucide-react'
 import Loading from '@/components/Loading'
 
@@ -40,6 +42,13 @@ export default function AdminDashboard() {
     const [sortField, setSortField] = useState<SortField>('name')
     const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
     const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
+    const [orders, setOrders] = useState<any[]>([])
+    const [stats, setStats] = useState({
+        totalProducts: 0,
+        activeProducts: 0,
+        totalOrders: 0,
+        totalRevenue: 0
+    })
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -54,7 +63,7 @@ export default function AdminDashboard() {
         }
 
         if (status === 'authenticated' && session?.user?.role === 'ADMIN') {
-            fetchProducts()
+            fetchData()
         }
     }, [status, session, router])
 
@@ -62,19 +71,36 @@ export default function AdminDashboard() {
         filterProducts()
     }, [searchTerm, filterCategory, filterStatus, products, sortField, sortOrder])
 
-    const fetchProducts = async () => {
+    const fetchData = async () => {
         try {
-            const response = await fetch('/api/products')
-            const data = await response.json()
-            
-            // ✅ FIX: Extraer el array de products correctamente
-            const productsArray = data.products || data || []
-            
+            const [productsRes, ordersRes] = await Promise.all([
+                fetch('/api/products'),
+                fetch('/api/orders')
+            ])
+
+            const productsData = await productsRes.json()
+            const ordersData = await ordersRes.json()
+
+            const productsArray = productsData.products || productsData || []
+            const ordersArray = Array.isArray(ordersData) ? ordersData : []
+
             setProducts(productsArray)
             setFilteredProducts(productsArray)
+            setOrders(ordersArray)
+
+            // Calculate stats
+            const totalRevenue = ordersArray.reduce((sum: number, order: any) => sum + order.total, 0)
+
+            setStats({
+                totalProducts: productsArray.length,
+                activeProducts: productsArray.filter((p: any) => p.active).length,
+                totalOrders: ordersArray.length,
+                totalRevenue
+            })
+
         } catch (error) {
-            console.error('Error fetching products:', error)
-            toast.error('Error al cargar productos')
+            console.error('Error fetching data:', error)
+            toast.error('Error al cargar datos del dashboard')
         } finally {
             setLoading(false)
         }
@@ -140,7 +166,7 @@ export default function AdminDashboard() {
 
             toast.success('Producto eliminado exitosamente', { id: loadingToast })
             setDeleteConfirm(null)
-            fetchProducts()
+            fetchData()
         } catch (error) {
             console.error('Error:', error)
             toast.error('Error al eliminar producto', { id: loadingToast })
@@ -163,7 +189,7 @@ export default function AdminDashboard() {
                 currentStatus ? 'Producto desactivado' : 'Producto activado',
                 { id: loadingToast }
             )
-            fetchProducts()
+            fetchData()
         } catch (error) {
             console.error('Error:', error)
             toast.error('Error al actualizar estado', { id: loadingToast })
@@ -186,7 +212,7 @@ export default function AdminDashboard() {
                 currentStatus ? 'Producto removido de destacados' : 'Producto marcado como destacado',
                 { id: loadingToast }
             )
-            fetchProducts()
+            fetchData()
         } catch (error) {
             console.error('Error:', error)
             toast.error('Error al actualizar destacado', { id: loadingToast })
@@ -198,37 +224,36 @@ export default function AdminDashboard() {
     }
 
     const categories = ['Todas', ...new Set(products.map((p: any) => p.category))]
-    const totalValue = products.reduce((sum: number, p: any) => sum + (p.price * p.stock), 0)
 
-    const stats = [
+    const statsCards = [
         {
-            icon: Package,
-            label: 'Total Productos',
-            value: products.length,
-            color: 'from-blue-500 to-blue-600',
-            iconBg: 'bg-blue-100',
-            iconColor: 'text-blue-600'
-        },
-        {
-            icon: TrendingUp,
-            label: 'Productos Activos',
-            value: products.filter((p: any) => p.active).length,
+            icon: DollarSign,
+            label: 'Ingresos Totales',
+            value: `$${stats.totalRevenue.toLocaleString()}`,
             color: 'from-green-500 to-green-600',
             iconBg: 'bg-green-100',
             iconColor: 'text-green-600'
         },
         {
+            icon: Package,
+            label: 'Total Pedidos',
+            value: stats.totalOrders,
+            color: 'from-blue-500 to-blue-600',
+            iconBg: 'bg-blue-100',
+            iconColor: 'text-blue-600'
+        },
+        {
             icon: Star,
-            label: 'Destacados',
-            value: products.filter((p: any) => p.featured).length,
+            label: 'Productos Activos',
+            value: stats.activeProducts,
             color: 'from-yellow-500 to-yellow-600',
             iconBg: 'bg-yellow-100',
             iconColor: 'text-yellow-600'
         },
         {
-            icon: DollarSign,
-            label: 'Valor Inventario',
-            value: `$${totalValue.toFixed(0)}`,
+            icon: TrendingUp,
+            label: 'Total Productos',
+            value: stats.totalProducts,
             color: 'from-purple-500 to-purple-600',
             iconBg: 'bg-purple-100',
             iconColor: 'text-purple-600'
@@ -252,27 +277,43 @@ export default function AdminDashboard() {
                             Gestiona tus productos y órdenes • {filteredProducts.length} productos mostrados
                         </p>
                     </div>
-                    <Link href="/admin/productos/nuevo">
-                        <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-300 font-semibold flex items-center gap-2 shadow-lg hover:shadow-red-500/50"
-                        >
-                            <Plus className="w-5 h-5" />
-                            Nuevo Producto
-                        </motion.button>
-                    </Link>
+                    <div className="flex items-center gap-3">
+                        <Link href="/">
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                className="bg-white border-2 border-gray-300 text-gray-700 px-6 py-3 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all duration-300 font-semibold flex items-center gap-2 shadow-md"
+                            >
+                                <Home className="w-5 h-5" />
+                                Inicio
+                            </motion.button>
+                        </Link>
+                        <Link href="/admin/productos/nuevo">
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-300 font-semibold flex items-center gap-2 shadow-lg hover:shadow-red-500/50"
+                            >
+                                <Plus className="w-5 h-5" />
+                                Nuevo Producto
+                            </motion.button>
+                        </Link>
+                    </div>
                 </motion.div>
 
-                {/* Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    {stats.map((stat, index) => (
+                {/* Enhanced Statistics Cards */}
+                <motion.div
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                >
+                    {statsCards.map((stat, index) => (
                         <motion.div
-                            key={index}
+                            key={stat.label}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.1 }}
-                            whileHover={{ y: -5 }}
+                            whileHover={{ y: -5, scale: 1.02 }}
                             className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100"
                         >
                             <div className="flex items-center justify-between">
@@ -290,7 +331,7 @@ export default function AdminDashboard() {
                             </div>
                         </motion.div>
                     ))}
-                </div>
+                </motion.div>
 
                 {/* Filters */}
                 <motion.div
@@ -308,7 +349,7 @@ export default function AdminDashboard() {
                                 placeholder="Buscar productos por nombre, categoría..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
+                                className="w-full pl-10 pr-4 py-3 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition hover:border-gray-400"
                             />
                         </div>
 
@@ -318,7 +359,7 @@ export default function AdminDashboard() {
                             <select
                                 value={filterCategory}
                                 onChange={(e) => setFilterCategory(e.target.value)}
-                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition appearance-none cursor-pointer"
+                                className="w-full pl-10 pr-4 py-3 border border-gray-300 bg-white text-gray-900 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition appearance-none cursor-pointer hover:border-gray-400"
                             >
                                 {categories.map(cat => (
                                     <option key={cat} value={cat}>{cat}</option>
@@ -331,7 +372,7 @@ export default function AdminDashboard() {
                             <select
                                 value={filterStatus}
                                 onChange={(e) => setFilterStatus(e.target.value)}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition appearance-none cursor-pointer"
+                                className="w-full px-4 py-3 border border-gray-300 bg-white text-gray-900 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition appearance-none cursor-pointer hover:border-gray-400"
                             >
                                 <option value="Todos">Todos los estados</option>
                                 <option value="Activos">Activos</option>
@@ -360,7 +401,7 @@ export default function AdminDashboard() {
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                                 <tr>
-                                    <th 
+                                    <th
                                         className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition"
                                         onClick={() => {
                                             setSortField('name')
@@ -375,7 +416,7 @@ export default function AdminDashboard() {
                                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                                         Categoría
                                     </th>
-                                    <th 
+                                    <th
                                         className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition"
                                         onClick={() => {
                                             setSortField('price')
@@ -387,7 +428,7 @@ export default function AdminDashboard() {
                                             {sortField === 'price' && <ArrowUpDown className="w-4 h-4" />}
                                         </div>
                                     </th>
-                                    <th 
+                                    <th
                                         className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition"
                                         onClick={() => {
                                             setSortField('stock')
@@ -458,13 +499,12 @@ export default function AdminDashboard() {
 
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span
-                                                    className={`text-sm font-bold px-3 py-1 rounded-full inline-flex items-center gap-2 ${
-                                                        product.stock > 10
-                                                            ? 'text-green-600 bg-green-50'
-                                                            : product.stock > 0
-                                                                ? 'text-yellow-600 bg-yellow-50'
-                                                                : 'text-red-600 bg-red-50'
-                                                    }`}
+                                                    className={`text-sm font-bold px-3 py-1 rounded-full inline-flex items-center gap-2 ${product.stock > 10
+                                                        ? 'text-green-600 bg-green-50'
+                                                        : product.stock > 0
+                                                            ? 'text-yellow-600 bg-yellow-50'
+                                                            : 'text-red-600 bg-red-50'
+                                                        }`}
                                                 >
                                                     {product.stock > 0 ? (
                                                         <CheckCircle className="w-4 h-4" />
@@ -481,11 +521,10 @@ export default function AdminDashboard() {
                                                         whileHover={{ scale: 1.05 }}
                                                         whileTap={{ scale: 0.95 }}
                                                         onClick={() => toggleActive(product.id, product.active)}
-                                                        className={`px-3 py-1 inline-flex items-center gap-1 text-xs leading-5 font-semibold rounded-full cursor-pointer transition-all justify-center ${
-                                                            product.active
-                                                                ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                                                                : 'bg-red-100 text-red-800 hover:bg-red-200'
-                                                        }`}
+                                                        className={`px-3 py-1 inline-flex items-center gap-1 text-xs leading-5 font-semibold rounded-full cursor-pointer transition-all justify-center ${product.active
+                                                            ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                                            : 'bg-red-100 text-red-800 hover:bg-red-200'
+                                                            }`}
                                                     >
                                                         {product.active ? (
                                                             <>
@@ -504,11 +543,10 @@ export default function AdminDashboard() {
                                                         whileHover={{ scale: 1.05 }}
                                                         whileTap={{ scale: 0.95 }}
                                                         onClick={() => toggleFeatured(product.id, product.featured)}
-                                                        className={`px-3 py-1 inline-flex items-center gap-1 text-xs leading-5 font-semibold rounded-full cursor-pointer transition-all justify-center ${
-                                                            product.featured
-                                                                ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                                        }`}
+                                                        className={`px-3 py-1 inline-flex items-center gap-1 text-xs leading-5 font-semibold rounded-full cursor-pointer transition-all justify-center ${product.featured
+                                                            ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                            }`}
                                                     >
                                                         <Star className={`w-3 h-3 ${product.featured ? 'fill-current' : ''}`} />
                                                         {product.featured ? 'Destacado' : 'Normal'}
@@ -518,25 +556,39 @@ export default function AdminDashboard() {
 
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <Link href={`/admin/productos/${product.id}`}>
+                                                    {/* View Button */}
+                                                    <Link href={`/productos/${product.id}`} target="_blank">
                                                         <motion.button
                                                             whileHover={{ scale: 1.1 }}
                                                             whileTap={{ scale: 0.9 }}
-                                                            className="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-50 rounded-lg transition-all"
-                                                            title="Editar producto"
+                                                            className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition"
+                                                            title="Ver producto"
                                                         >
-                                                            <Edit className="w-5 h-5" />
+                                                            <ExternalLink className="w-4 h-4" />
                                                         </motion.button>
                                                     </Link>
 
+                                                    {/* Edit Button */}
+                                                    <Link href={`/admin/productos/${product.id}/editar`}>
+                                                        <motion.button
+                                                            whileHover={{ scale: 1.1 }}
+                                                            whileTap={{ scale: 0.9 }}
+                                                            className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition"
+                                                            title="Editar producto"
+                                                        >
+                                                            <Edit className="w-4 h-4" />
+                                                        </motion.button>
+                                                    </Link>
+
+                                                    {/* Delete Button */}
                                                     <motion.button
                                                         whileHover={{ scale: 1.1 }}
                                                         whileTap={{ scale: 0.9 }}
                                                         onClick={() => setDeleteConfirm({ id: product.id, name: product.name })}
-                                                        className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-lg transition-all"
+                                                        className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition"
                                                         title="Eliminar producto"
                                                     >
-                                                        <Trash2 className="w-5 h-5" />
+                                                        <Trash2 className="w-4 h-4" />
                                                     </motion.button>
                                                 </div>
                                             </td>
@@ -606,6 +658,6 @@ export default function AdminDashboard() {
                     </motion.div>
                 )}
             </AnimatePresence>
-        </div>
+        </div >
     )
 }

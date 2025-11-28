@@ -78,7 +78,7 @@ model Order {
   userId          String
   user            User        @relation(fields: [userId], references: [id])
   total           Float
-  status          String      @default("PENDING")
+  status          OrderStatus @default(PENDING)
   items           OrderItem[]
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -87,6 +87,14 @@ model Order {
   shippingAddress String
   shippingCity    String
   shippingZip     String
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
 }
 
 model OrderItem {
