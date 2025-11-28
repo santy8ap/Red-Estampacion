@@ -15,11 +15,12 @@ function parseJSON(str: string): any {
 // GET - Obtener un producto
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const product = await prisma.product.findUnique({
-      where: { id: params.id }
+      where: { id }
     })
 
     if (!product) {
@@ -47,9 +48,10 @@ export async function GET(
 // PUT - Actualizar producto (solo admin)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const session = await getServerSession(authOptions)
 
     if (!session || session.user.role !== 'ADMIN') {
@@ -70,7 +72,7 @@ export async function PUT(
     if (body.stock !== undefined) dataToUpdate.stock = parseInt(body.stock)
 
     const product = await prisma.product.update({
-      where: { id: params.id },
+      where: { id },
       data: dataToUpdate
     })
 
@@ -92,9 +94,10 @@ export async function PUT(
 // DELETE - Eliminar producto (solo admin)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const session = await getServerSession(authOptions)
 
     if (!session || session.user.role !== 'ADMIN') {
@@ -105,7 +108,7 @@ export async function DELETE(
     }
 
     await prisma.product.delete({
-      where: { id: params.id }
+      where: { id }
     })
 
     return NextResponse.json({ message: 'Producto eliminado' })

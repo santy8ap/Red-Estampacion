@@ -3,6 +3,7 @@
 import { Toaster } from 'sonner'
 import { CartProvider } from '@/context/CartContext'
 import { LanguageProvider } from '@/context/LanguageContext'
+import { WishlistProvider } from '@/context/WishlistContext'
 import SessionProvider from './SessionProvider'
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -10,21 +11,35 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <SessionProvider>
             <LanguageProvider>
                 <CartProvider>
-                    {children}
-                    <Toaster
-                        position="top-right"
-                        richColors
-                        closeButton
-                        expand={false}
-                        theme="light"
-                        toastOptions={{
-                            style: {
-                                background: 'white',
-                                border: '1px solid #e5e7eb',
-                            },
-                            duration: 3000,
-                        }}
-                    />
+                    <WishlistProvider>
+                        {children}
+                        <Toaster
+                            position="top-right"
+                            richColors
+                            closeButton
+                            expand={true}
+                            theme="light"
+                            visibleToasts={3}
+                            toastOptions={{
+                                style: {
+                                    background: 'white',
+                                    border: '1px solid #e5e7eb',
+                                    borderRadius: '12px',
+                                    padding: '16px',
+                                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                                },
+                                duration: 4000,
+                                classNames: {
+                                    toast: 'flex gap-3 items-center',
+                                    title: 'font-semibold text-gray-900 text-sm',
+                                    description: 'text-xs text-gray-600 mt-1',
+                                    actionButton: 'bg-red-600 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-red-700 transition',
+                                    cancelButton: 'bg-gray-200 text-gray-700 px-3 py-1.5 rounded-md text-xs font-medium hover:bg-gray-300 transition',
+                                    closeButton: 'absolute -top-2 -right-2 bg-white border border-gray-200 rounded-full p-1 hover:bg-gray-100 transition',
+                                },
+                            }}
+                        />
+                    </WishlistProvider>
                 </CartProvider>
             </LanguageProvider>
         </SessionProvider>

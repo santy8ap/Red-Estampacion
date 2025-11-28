@@ -1,110 +1,118 @@
 import nodemailer from 'nodemailer'
+import { orderConfirmationTemplate, dailyOrdersSummaryTemplate, welcomeTemplate } from './templates'
 
-const createTransporter = () => {
-  return nodemailer.createTransport({
+// Configurar transporter de Nodemailer
+const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: false,
+    secure: process.env.SMTP_SECURE === 'true',
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
     },
-  })
+})
+
+// Test de conexión
+export async function testEmailConnection() {
+    try {
+        await transporter.verify()
+        console.log('✅ Email service connected successfully')
+        return true
+    } catch (error) {
+        console.error('❌ Email service connection failed:', error)
+        return false
+    }
 }
 
-const emailTemplate = (content: string) => `
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
-    <div style="max-width: 600px; margin: 0 auto; background-color: white;">
-        <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 30px; text-align: center;">
-            <h1 style="color: white; margin: 0;">Red Estampación</h1>
-        </div>
-        <div style="padding: 30px;">
-            ${content}
-        </div>
-        <div style="background-color: #f8f9fa; padding: 20px; text-align: center; color: #6c757d; font-size: 12px;">
-            <p style="margin: 5px 0;">© 2024 Red Estampación</p>
-        </div>
-    </div>
-</body>
-</html>
-`
-
-export async function sendWelcomeEmail(to: string, name: string) {
-  const transporter = createTransporter()
-  
-  const content = `
-    <h2 style="color: #333;">¡Bienvenido ${name}!</h2>
-    <p style="color: #666;">Gracias por registrarte en Red Estampación.</p>
-    <a href="${process.env.NEXTAUTH_URL}/productos" 
-       style="display: inline-block; background-color: #ef4444; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px;">
-      Explorar Productos
-    </a>
-  `
-  
-  return await transporter.sendMail({
-    from: process.env.EMAIL_FROM,
-    to,
-    subject: '¡Bienvenido a Red Estampación!',
-    html: emailTemplate(content),
-  })
+export async function sendOrderConfirmation(orderData: {
+    orderId: string
+    customerName: string
+    customerEmail: string
+    total: number
+    items: any[]
+    shippingAddress: any
+}) {
+    try {
+        const template = orderConfirmationTemplate(orderData)
+        
+        const result = await transporter.sendMail({
+            from: process.env.SMTP_FROM || 'noreply@redeestampacion.com',
+            to: orderData.customerEmail,
+            subject: template.subject,
+            html: template.html,
+        })
+        
+        console.log('✅ Orden confirmada enviada a:', orderData.customerEmail)
+        return result
+    } catch (error) {
+        console.error('❌ Error enviando confirmación de orden:', error)
+        throw error
+    }
 }
 
-export async function sendOrderConfirmation(to: string, orderData: any) {
-  const transporter = createTransporter()
-  
-  const content = `
-    <h2 style="color: #333;">¡Orden Confirmada!</h2>
-    <p>Tu orden #${orderData.id} ha sido confirmada.</p>
-    <p><strong>Total: $${orderData.total.toFixed(2)}</strong></p>
-  `
-  
-  return await transporter.sendMail({
-    from: process.env.EMAIL_FROM,
-    to,
-    subject: `Orden confirmada - #${orderData.id}`,
-    html: emailTemplate(content),
-  })
+export async function sendDailyOrdersSummary(
+    orders: any[],
+    adminEmail: string
+) {
+    try {
+        if (!orders.length) {
+            console.log('ℹ️  No hay órdenes para enviar resumen')
+            return
+        }
+
+        const template = dailyOrdersSummaryTemplate(orders)
+        
+        const result = await transporter.sendMail({
+            from: process.env.SMTP_FROM || 'noreply@redeestampacion.com',
+            to: adminEmail,
+            subject: template.subject,
+            html: template.html,
+        })
+        
+        console.log('✅ Resumen diario de órdenes enviado')
+        return result
+    } catch (error) {
+        console.error('❌ Error enviando resumen diario:', error)
+        throw error
+    }
 }
 
-export async function sendCartReminderEmail(to: string, userName: string, items: any[]) {
-  const transporter = createTransporter()
-  
-  const content = `
-    <h2 style="color: #333;">¡No olvides tu carrito!</h2>
-    <p>Hola ${userName}, tienes ${items.length} productos esperando.</p>
-  `
-  
-  return await transporter.sendMail({
-    from: process.env.EMAIL_FROM,
-    to,
-    subject: 'Productos en tu carrito',
-    html: emailTemplate(content),
-  })
+export async function sendWelcomeEmail(email: string, name: string) {
+    try {
+        const template = welcomeTemplate(name)
+        
+        const result = await transporter.sendMail({
+            from: process.env.SMTP_FROM || 'noreply@redeestampacion.com',
+            to: email,
+            subject: template.subject,
+            html: template.html,
+        })
+        
+        console.log('✅ Email de bienvenida enviado a:', email)
+        return result
+    } catch (error) {
+        console.error('❌ Error enviando email de bienvenida:', error)
+        throw error
+    }
 }
 
-export async function sendDailyNewsletter(subscribers: string[]) {
-  const transporter = createTransporter()
-  const content = `<h2>Ofertas del día</h2><p>Revisa nuestras nuevas ofertas.</p>`
-  
-  const results = await Promise.allSettled(
-    subscribers.map(email => 
-      transporter.sendMail({
-        from: process.env.EMAIL_FROM,
-        to: email,
-        subject: 'Newsletter diario',
-        html: emailTemplate(content),
-      })
-    )
-  )
-  
-  return {
-    successful: results.filter(r => r.status === 'fulfilled').length,
-    failed: results.filter(r => r.status === 'rejected').length
-  }
+export async function sendCustomEmail(
+    to: string,
+    subject: string,
+    html: string
+) {
+    try {
+        const result = await transporter.sendMail({
+            from: process.env.SMTP_FROM || 'noreply@redeestampacion.com',
+            to,
+            subject,
+            html,
+        })
+        
+        console.log('✅ Email personalizado enviado a:', to)
+        return result
+    } catch (error) {
+        console.error('❌ Error enviando email personalizado:', error)
+        throw error
+    }
 }

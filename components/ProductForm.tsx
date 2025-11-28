@@ -3,9 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { motion } from 'framer-motion'
 import ImageUpload from './ImageUpload'
 import { productSchema } from '@/lib/validations/schemas'
 import * as yup from 'yup'
+import { AlertCircle, CheckCircle, Save, X } from 'lucide-react'
 
 type ProductFormProps = {
     product?: any
@@ -20,6 +22,7 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
     const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [errors, setErrors] = useState<Record<string, string>>({})
+    const [touched, setTouched] = useState<Record<string, boolean>>({})
 
     const parseField = (field: any) => {
         if (typeof field === 'string') {
@@ -70,10 +73,9 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
         setFormData(prev => ({
             ...prev,
             sizes: prev.sizes.includes(size)
-                ? prev.sizes.filter(s => s !== size)
+                ? prev.sizes.filter((s: string) => s !== size)
                 : [...prev.sizes, size]
         }))
-        // Limpiar error de sizes
         if (errors.sizes) {
             setErrors(prev => ({ ...prev, sizes: '' }))
         }
@@ -83,12 +85,19 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
         setFormData(prev => ({
             ...prev,
             colors: prev.colors.includes(color)
-                ? prev.colors.filter(c => c !== color)
+                ? prev.colors.filter((c: string) => c !== color)
                 : [...prev.colors, color]
         }))
-        // Limpiar error de colors
         if (errors.colors) {
             setErrors(prev => ({ ...prev, colors: '' }))
+        }
+    }
+
+    const handleFieldChange = (field: string, value: any) => {
+        setFormData(prev => ({ ...prev, [field]: value }))
+        setTouched(prev => ({ ...prev, [field]: true }))
+        if (errors[field]) {
+            setErrors(prev => ({ ...prev, [field]: '' }))
         }
     }
 
@@ -144,245 +153,329 @@ export default function ProductForm({ product, isEdit = false }: ProductFormProp
         }
     }
 
-    return (
-        <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-xl shadow-lg" noValidate>
-            <div className="border-b pb-4">
-                <h2 className="text-2xl font-bold text-gray-900">
-                    {isEdit ? 'Editar Producto' : 'Nuevo Producto'}
-                </h2>
-                <p className="text-gray-600 mt-1">
-                    Complete todos los campos para {isEdit ? 'actualizar' : 'crear'} el producto
-                </p>
-            </div>
+    const FormInput = ({ label, field, type = 'text', placeholder, required = false, children = null }: any) => {
+        const hasError = touched[field] && errors[field]
 
-            <div>
+        return (
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-2"
+            >
+                <label className="block text-sm font-semibold text-gray-900">
+                    {label}
+                    {required && <span className="text-red-600 ml-1">*</span>}
+                </label>
+                {children || (
+                    <input
+                        type={type}
+                        step={type === 'number' ? '0.01' : undefined}
+                        value={formData[field as keyof typeof formData]}
+                        onChange={(e) => handleFieldChange(field, e.target.value)}
+                        className={`w-full px-4 py-3 border-2 rounded-lg transition focus:outline-none ${
+                            hasError
+                                ? 'border-red-500 bg-red-50 focus:ring-2 focus:ring-red-200'
+                                : 'border-gray-200 focus:border-red-500 focus:ring-2 focus:ring-red-100'
+                        }`}
+                        placeholder={placeholder}
+                    />
+                )}
+                {hasError && (
+                    <motion.p
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="text-sm text-red-600 flex items-center gap-1"
+                    >
+                        <AlertCircle className="w-4 h-4" />
+                        {errors[field]}
+                    </motion.p>
+                )}
+            </motion.div>
+        )
+    }
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-8" noValidate>
+            {/* Images Section */}
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="space-y-3"
+            >
+                <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                        <span className="text-red-600 font-bold">1</span>
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900">Imágenes del producto</h3>
+                </div>
                 <ImageUpload
                     value={formData.images}
-                    onChange={(urls) => {
-                        setFormData({ ...formData, images: urls })
-                        if (errors.images) setErrors(prev => ({ ...prev, images: '' }))
-                    }}
+                    onChange={(urls) => handleFieldChange('images', urls)}
                     maxFiles={8}
                 />
-                {errors.images && (
-                    <p className="mt-1 text-sm text-red-600">{errors.images}</p>
-                )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Nombre del producto *
-                    </label>
-                    <input
-                        type="text"
-                        value={formData.name}
-                        onChange={(e) => {
-                            setFormData({ ...formData, name: e.target.value })
-                            if (errors.name) setErrors(prev => ({ ...prev, name: '' }))
-                        }}
-                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${
-                            errors.name ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                        placeholder="Ej: Camisa estampada vintage"
-                    />
-                    {errors.name && (
-                        <p className="mt-1 text-sm text-red-600">{errors.name}</p>
-                    )}
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Categoría *
-                    </label>
-                    <select
-                        value={formData.category}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                {touched['images'] && errors.images && (
+                    <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-sm text-red-600 flex items-center gap-1"
                     >
-                        {CATEGORIES.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                    </select>
-                </div>
-            </div>
-
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Descripción *
-                </label>
-                <textarea
-                    value={formData.description}
-                    onChange={(e) => {
-                        setFormData({ ...formData, description: e.target.value })
-                        if (errors.description) setErrors(prev => ({ ...prev, description: '' }))
-                    }}
-                    rows={4}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${
-                        errors.description ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="Describe las características del producto..."
-                />
-                {errors.description && (
-                    <p className="mt-1 text-sm text-red-600">{errors.description}</p>
+                        <AlertCircle className="w-4 h-4" />
+                        {errors.images}
+                    </motion.p>
                 )}
-            </div>
+            </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Precio *
-                    </label>
-                    <div className="relative">
-                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                            $
-                        </span>
-                        <input
-                            type="number"
-                            step="0.01"
-                            value={formData.price}
-                            onChange={(e) => {
-                                setFormData({ ...formData, price: e.target.value })
-                                if (errors.price) setErrors(prev => ({ ...prev, price: '' }))
-                            }}
-                            className={`w-full pl-8 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${
-                                errors.price ? 'border-red-500' : 'border-gray-300'
-                            }`}
-                            placeholder="29.99"
-                        />
+            {/* Section 2: Basic Info */}
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.1 }}
+                className="space-y-4"
+            >
+                <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                        <span className="text-red-600 font-bold">2</span>
                     </div>
-                    {errors.price && (
-                        <p className="mt-1 text-sm text-red-600">{errors.price}</p>
-                    )}
+                    <h3 className="text-lg font-bold text-gray-900">Información básica</h3>
                 </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Stock *
-                    </label>
-                    <input
-                        type="number"
-                        value={formData.stock}
-                        onChange={(e) => {
-                            setFormData({ ...formData, stock: e.target.value })
-                            if (errors.stock) setErrors(prev => ({ ...prev, stock: '' }))
-                        }}
-                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${
-                            errors.stock ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                        placeholder="100"
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormInput
+                        label="Nombre del producto"
+                        field="name"
+                        placeholder="Ej: Camisa estampada vintage"
+                        required
                     />
-                    {errors.stock && (
-                        <p className="mt-1 text-sm text-red-600">{errors.stock}</p>
-                    )}
-                </div>
-
-                <div className="flex items-center space-x-4 mt-8">
-                    <label className="flex items-center">
-                        <input
-                            type="checkbox"
-                            checked={formData.featured}
-                            onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
-                            className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                        />
-                        <span className="ml-2 text-sm font-medium text-gray-700">
-                            Destacado
-                        </span>
-                    </label>
-
-                    <label className="flex items-center">
-                        <input
-                            type="checkbox"
-                            checked={formData.active}
-                            onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
-                            className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                        />
-                        <span className="ml-2 text-sm font-medium text-gray-700">
-                            Activo
-                        </span>
-                    </label>
-                </div>
-            </div>
-
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tallas disponibles *
-                </label>
-                <div className="flex flex-wrap gap-2">
-                    {SIZES.map(size => (
-                        <button
-                            key={size}
-                            type="button"
-                            onClick={() => toggleSize(size)}
-                            className={`px-4 py-2 rounded-lg border-2 font-medium transition ${
-                                formData.sizes.includes(size)
-                                    ? 'bg-red-500 text-white border-red-500'
-                                    : 'bg-white text-gray-700 border-gray-300 hover:border-red-400'
-                            }`}
+                    <FormInput
+                        label="Categoría"
+                        field="category"
+                        required
+                    >
+                        <select
+                            value={formData.category}
+                            onChange={(e) => handleFieldChange('category', e.target.value)}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-red-500 focus:ring-2 focus:ring-red-100 transition cursor-pointer"
                         >
-                            {size}
-                        </button>
-                    ))}
+                            {CATEGORIES.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                        </select>
+                    </FormInput>
                 </div>
-                {errors.sizes && (
-                    <p className="mt-1 text-sm text-red-600">{errors.sizes}</p>
-                )}
-            </div>
 
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Colores disponibles *
-                </label>
-                <div className="flex flex-wrap gap-2">
-                    {COLORS.map(color => (
-                        <button
-                            key={color}
-                            type="button"
-                            onClick={() => toggleColor(color)}
-                            className={`px-4 py-2 rounded-lg border-2 font-medium transition ${
-                                formData.colors.includes(color)
-                                    ? 'bg-red-500 text-white border-red-500'
-                                    : 'bg-white text-gray-700 border-gray-300 hover:border-red-400'
-                            }`}
-                        >
-                            {color}
-                        </button>
-                    ))}
+                <FormInput
+                    label="Descripción"
+                    field="description"
+                    required
+                >
+                    <textarea
+                        value={formData.description}
+                        onChange={(e) => handleFieldChange('description', e.target.value)}
+                        rows={4}
+                        className={`w-full px-4 py-3 border-2 rounded-lg transition focus:outline-none resize-none ${
+                            touched['description'] && errors.description
+                                ? 'border-red-500 bg-red-50 focus:ring-2 focus:ring-red-200'
+                                : 'border-gray-200 focus:border-red-500 focus:ring-2 focus:ring-red-100'
+                        }`}
+                        placeholder="Describe las características del producto..."
+                    />
+                </FormInput>
+            </motion.div>
+
+            {/* Section 3: Pricing & Stock */}
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="space-y-4"
+            >
+                <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                        <span className="text-red-600 font-bold">3</span>
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900">Precio e inventario</h3>
                 </div>
-                {errors.colors && (
-                    <p className="mt-1 text-sm text-red-600">{errors.colors}</p>
-                )}
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <FormInput
+                        label="Precio"
+                        field="price"
+                        type="number"
+                        placeholder="29.99"
+                        required
+                    />
+                    <FormInput
+                        label="Stock"
+                        field="stock"
+                        type="number"
+                        placeholder="100"
+                        required
+                    />
+                    <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-gray-900">Estado</label>
+                        <div className="grid grid-cols-2 gap-3 mt-3">
+                            <motion.label
+                                whileHover={{ scale: 1.02 }}
+                                className={`flex items-center gap-2 p-3 border-2 rounded-lg cursor-pointer transition ${
+                                    formData.featured
+                                        ? 'border-yellow-500 bg-yellow-50'
+                                        : 'border-gray-200 bg-white hover:border-yellow-300'
+                                }`}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={formData.featured}
+                                    onChange={(e) => handleFieldChange('featured', e.target.checked)}
+                                    className="w-4 h-4 text-yellow-600 rounded"
+                                />
+                                <span className="text-sm font-medium text-gray-700">Destacado</span>
+                            </motion.label>
 
-            <div className="flex gap-4 pt-6 border-t">
-                <button
+                            <motion.label
+                                whileHover={{ scale: 1.02 }}
+                                className={`flex items-center gap-2 p-3 border-2 rounded-lg cursor-pointer transition ${
+                                    formData.active
+                                        ? 'border-green-500 bg-green-50'
+                                        : 'border-gray-200 bg-white hover:border-green-300'
+                                }`}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={formData.active}
+                                    onChange={(e) => handleFieldChange('active', e.target.checked)}
+                                    className="w-4 h-4 text-green-600 rounded"
+                                />
+                                <span className="text-sm font-medium text-gray-700">Activo</span>
+                            </motion.label>
+                        </div>
+                    </div>
+                </div>
+            </motion.div>
+
+            {/* Section 4: Attributes */}
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="space-y-4"
+            >
+                <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                        <span className="text-red-600 font-bold">4</span>
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900">Tallas y colores disponibles</h3>
+                </div>
+
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-900 mb-3">
+                            Tallas disponibles <span className="text-red-600">*</span>
+                        </label>
+                        <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                            {SIZES.map(size => (
+                                <motion.button
+                                    key={size}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    type="button"
+                                    onClick={() => toggleSize(size)}
+                                    className={`px-4 py-3 rounded-lg border-2 font-bold text-center transition ${
+                                        formData.sizes.includes(size)
+                                            ? 'bg-red-500 text-white border-red-500 shadow-lg shadow-red-500/30'
+                                            : 'bg-white text-gray-700 border-gray-200 hover:border-red-400'
+                                    }`}
+                                >
+                                    {size}
+                                </motion.button>
+                            ))}
+                        </div>
+                        {touched['sizes'] && errors.sizes && (
+                            <motion.p
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="text-sm text-red-600 mt-2 flex items-center gap-1"
+                            >
+                                <AlertCircle className="w-4 h-4" />
+                                {errors.sizes}
+                            </motion.p>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-900 mb-3">
+                            Colores disponibles <span className="text-red-600">*</span>
+                        </label>
+                        <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
+                            {COLORS.map(color => (
+                                <motion.button
+                                    key={color}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    type="button"
+                                    onClick={() => toggleColor(color)}
+                                    className={`px-4 py-3 rounded-lg border-2 font-bold text-center transition ${
+                                        formData.colors.includes(color)
+                                            ? 'bg-red-500 text-white border-red-500 shadow-lg shadow-red-500/30'
+                                            : 'bg-white text-gray-700 border-gray-200 hover:border-red-400'
+                                    }`}
+                                >
+                                    {color}
+                                </motion.button>
+                            ))}
+                        </div>
+                        {touched['colors'] && errors.colors && (
+                            <motion.p
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="text-sm text-red-600 mt-2 flex items-center gap-1"
+                            >
+                                <AlertCircle className="w-4 h-4" />
+                                {errors.colors}
+                            </motion.p>
+                        )}
+                    </div>
+                </div>
+            </motion.div>
+
+            {/* Action Buttons */}
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="flex gap-3 pt-8 border-t border-gray-200"
+            >
+                <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     type="submit"
                     disabled={loading}
-                    className="flex-1 bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
+                    className="flex-1 bg-gradient-to-r from-red-600 to-red-700 text-white py-3 rounded-lg font-bold hover:from-red-700 hover:to-red-800 transition disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-red-500/50"
                 >
                     {loading ? (
                         <>
-                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                            <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            Guardando...
+                            {isEdit ? 'Actualizando...' : 'Creando...'}
                         </>
                     ) : (
                         <>
+                            <Save className="w-5 h-5" />
                             {isEdit ? 'Actualizar Producto' : 'Crear Producto'}
                         </>
                     )}
-                </button>
+                </motion.button>
 
-                <button
+                <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     type="button"
                     onClick={() => router.back()}
-                    className="px-8 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition"
+                    className="px-8 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-bold hover:bg-gray-50 transition flex items-center justify-center gap-2"
                 >
+                    <X className="w-5 h-5" />
                     Cancelar
-                </button>
-            </div>
+                </motion.button>
+            </motion.div>
         </form>
     )
 }

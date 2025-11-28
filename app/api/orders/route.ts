@@ -113,8 +113,21 @@ export async function POST(request: NextRequest) {
 
     // 📧 ENVIAR EMAIL DE CONFIRMACIÓN
     try {
-      await sendOrderConfirmation(shipping.email, order)
-      console.log('✅ Email de confirmación enviado')
+      await sendOrderConfirmation({
+        orderId: order.id,
+        customerName: shipping.name,
+        customerEmail: shipping.email,
+        total: order.total,
+        items: order.items,
+        shippingAddress: {
+          address: shipping.address,
+          city: shipping.city,
+          zip: shipping.zip,
+          name: shipping.name,
+          email: shipping.email
+        }
+      })
+      console.log('✅ Email de confirmación enviado a:', shipping.email)
     } catch (emailError) {
       console.error('❌ Error enviando email:', emailError)
       // No fallar la orden si el email falla

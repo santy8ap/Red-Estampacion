@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import {
     Package,
@@ -17,19 +17,29 @@ import {
     Trash2,
     Plus,
     Eye,
-    EyeOff
+    EyeOff,
+    ChevronDown,
+    CheckCircle,
+    AlertCircle,
+    ArrowUpDown
 } from 'lucide-react'
 import Loading from '@/components/Loading'
+
+type SortField = 'name' | 'price' | 'stock' | 'active'
+type SortOrder = 'asc' | 'desc'
 
 export default function AdminDashboard() {
     const { data: session, status } = useSession()
     const router = useRouter()
-    const [products, setProducts] = useState([])
-    const [filteredProducts, setFilteredProducts] = useState([])
+    const [products, setProducts] = useState<any[]>([])
+    const [filteredProducts, setFilteredProducts] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
     const [filterCategory, setFilterCategory] = useState('Todas')
     const [filterStatus, setFilterStatus] = useState('Todos')
+    const [sortField, setSortField] = useState<SortField>('name')
+    const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
+    const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -46,18 +56,22 @@ export default function AdminDashboard() {
         if (status === 'authenticated' && session?.user?.role === 'ADMIN') {
             fetchProducts()
         }
-    }, [status, session])
+    }, [status, session, router])
 
     useEffect(() => {
         filterProducts()
-    }, [searchTerm, filterCategory, filterStatus, products])
+    }, [searchTerm, filterCategory, filterStatus, products, sortField, sortOrder])
 
     const fetchProducts = async () => {
         try {
             const response = await fetch('/api/products')
             const data = await response.json()
-            setProducts(data)
-            setFilteredProducts(data)
+            
+            // ✅ FIX: Extraer el array de products correctamente
+            const productsArray = data.products || data || []
+            
+            setProducts(productsArray)
+            setFilteredProducts(productsArray)
         } catch (error) {
             console.error('Error fetching products:', error)
             toast.error('Error al cargar productos')
@@ -69,17 +83,21 @@ export default function AdminDashboard() {
     const filterProducts = () => {
         let filtered = [...products]
 
+        // Search filter
         if (searchTerm) {
             filtered = filtered.filter(p =>
                 p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                p.category.toLowerCase().includes(searchTerm.toLowerCase())
+                p.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                p.description?.toLowerCase().includes(searchTerm.toLowerCase())
             )
         }
 
+        // Category filter
         if (filterCategory !== 'Todas') {
             filtered = filtered.filter(p => p.category === filterCategory)
         }
 
+        // Status filter
         if (filterStatus === 'Activos') {
             filtered = filtered.filter(p => p.active)
         } else if (filterStatus === 'Inactivos') {
@@ -90,13 +108,27 @@ export default function AdminDashboard() {
             filtered = filtered.filter(p => p.stock === 0)
         }
 
+        // Sorting
+        filtered.sort((a, b) => {
+            let aVal = a[sortField]
+            let bVal = b[sortField]
+
+            if (typeof aVal === 'string') {
+                aVal = aVal.toLowerCase()
+                bVal = bVal.toLowerCase()
+            }
+
+            if (sortOrder === 'asc') {
+                return aVal > bVal ? 1 : -1
+            } else {
+                return aVal < bVal ? 1 : -1
+            }
+        })
+
         setFilteredProducts(filtered)
     }
 
-    const handleDelete = async (id: string, name: string) => {
-        const confirmDelete = window.confirm(`¿Estás seguro de eliminar "${name}"?`)
-        if (!confirmDelete) return
-
+    const handleDelete = async (id: string) => {
         const loadingToast = toast.loading('Eliminando producto...')
 
         try {
@@ -107,6 +139,7 @@ export default function AdminDashboard() {
             if (!response.ok) throw new Error('Error al eliminar')
 
             toast.success('Producto eliminado exitosamente', { id: loadingToast })
+            setDeleteConfirm(null)
             fetchProducts()
         } catch (error) {
             console.error('Error:', error)
@@ -216,7 +249,7 @@ export default function AdminDashboard() {
                             Panel de Administración
                         </h1>
                         <p className="text-gray-600">
-                            Gestiona tus productos y órdenes
+                            Gestiona tus productos y órdenes • {filteredProducts.length} productos mostrados
                         </p>
                     </div>
                     <Link href="/admin/productos/nuevo">
@@ -240,14 +273,14 @@ export default function AdminDashboard() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.1 }}
                             whileHover={{ y: -5 }}
-                            className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                            className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100"
                         >
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-gray-600 text-sm font-medium mb-1">
                                         {stat.label}
                                     </p>
-                                    <p className="text-3xl font-black bg-gradient-to-r ${stat.color} bg-clip-text text-transparent">
+                                    <p className={`text-3xl font-black bg-gradient-to-r ${stat.color} bg-clip-text text-transparent`}>
                                         {stat.value}
                                     </p>
                                 </div>
@@ -264,15 +297,15 @@ export default function AdminDashboard() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.4 }}
-                    className="bg-white p-6 rounded-2xl shadow-lg mb-6"
+                    className="bg-white p-6 rounded-2xl shadow-lg mb-6 border border-gray-100"
                 >
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         {/* Search */}
-                        <div className="md:col-span-2 relative">
+                        <div className="lg:col-span-2 relative">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                             <input
                                 type="text"
-                                placeholder="Buscar productos..."
+                                placeholder="Buscar productos por nombre, categoría..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
@@ -285,7 +318,7 @@ export default function AdminDashboard() {
                             <select
                                 value={filterCategory}
                                 onChange={(e) => setFilterCategory(e.target.value)}
-                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition appearance-none"
+                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition appearance-none cursor-pointer"
                             >
                                 {categories.map(cat => (
                                     <option key={cat} value={cat}>{cat}</option>
@@ -298,7 +331,7 @@ export default function AdminDashboard() {
                             <select
                                 value={filterStatus}
                                 onChange={(e) => setFilterStatus(e.target.value)}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition appearance-none"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition appearance-none cursor-pointer"
                             >
                                 <option value="Todos">Todos los estados</option>
                                 <option value="Activos">Activos</option>
@@ -321,23 +354,50 @@ export default function AdminDashboard() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.5 }}
-                    className="bg-white rounded-2xl shadow-lg overflow-hidden"
+                    className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100"
                 >
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                                 <tr>
-                                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                                        Producto
+                                    <th 
+                                        className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition"
+                                        onClick={() => {
+                                            setSortField('name')
+                                            setSortOrder(sortField === 'name' && sortOrder === 'asc' ? 'desc' : 'asc')
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            Producto
+                                            {sortField === 'name' && <ArrowUpDown className="w-4 h-4" />}
+                                        </div>
                                     </th>
                                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                                         Categoría
                                     </th>
-                                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                                        Precio
+                                    <th 
+                                        className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition"
+                                        onClick={() => {
+                                            setSortField('price')
+                                            setSortOrder(sortField === 'price' && sortOrder === 'asc' ? 'desc' : 'asc')
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            Precio
+                                            {sortField === 'price' && <ArrowUpDown className="w-4 h-4" />}
+                                        </div>
                                     </th>
-                                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                                        Stock
+                                    <th 
+                                        className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition"
+                                        onClick={() => {
+                                            setSortField('stock')
+                                            setSortOrder(sortField === 'stock' && sortOrder === 'asc' ? 'desc' : 'asc')
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            Stock
+                                            {sortField === 'stock' && <ArrowUpDown className="w-4 h-4" />}
+                                        </div>
                                     </th>
                                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                                         Estado
@@ -355,11 +415,11 @@ export default function AdminDashboard() {
                                             key={product.id}
                                             initial={{ opacity: 0, x: -20 }}
                                             animate={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: index * 0.05 }}
-                                            className="hover:bg-gray-50 transition-colors"
+                                            transition={{ delay: index * 0.02 }}
+                                            className="hover:bg-red-50 transition-colors"
                                         >
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center">
+                                                <div className="flex items-center gap-3">
                                                     <div className="h-12 w-12 flex-shrink-0 relative group">
                                                         {product.images?.[0] ? (
                                                             <img
@@ -373,12 +433,12 @@ export default function AdminDashboard() {
                                                             </div>
                                                         )}
                                                     </div>
-                                                    <div className="ml-4">
+                                                    <div>
                                                         <div className="text-sm font-bold text-gray-900">
                                                             {product.name}
                                                         </div>
                                                         <div className="text-xs text-gray-500">
-                                                            {product.images?.length || 0} imágenes
+                                                            ID: {product.id.slice(0, 8)}...
                                                         </div>
                                                     </div>
                                                 </div>
@@ -398,13 +458,19 @@ export default function AdminDashboard() {
 
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span
-                                                    className={`text-sm font-bold ${product.stock > 10
-                                                            ? 'text-green-600'
+                                                    className={`text-sm font-bold px-3 py-1 rounded-full inline-flex items-center gap-2 ${
+                                                        product.stock > 10
+                                                            ? 'text-green-600 bg-green-50'
                                                             : product.stock > 0
-                                                                ? 'text-yellow-600'
-                                                                : 'text-red-600'
-                                                        }`}
+                                                                ? 'text-yellow-600 bg-yellow-50'
+                                                                : 'text-red-600 bg-red-50'
+                                                    }`}
                                                 >
+                                                    {product.stock > 0 ? (
+                                                        <CheckCircle className="w-4 h-4" />
+                                                    ) : (
+                                                        <AlertCircle className="w-4 h-4" />
+                                                    )}
                                                     {product.stock} und.
                                                 </span>
                                             </td>
@@ -415,10 +481,11 @@ export default function AdminDashboard() {
                                                         whileHover={{ scale: 1.05 }}
                                                         whileTap={{ scale: 0.95 }}
                                                         onClick={() => toggleActive(product.id, product.active)}
-                                                        className={`px-3 py-1 inline-flex items-center gap-1 text-xs leading-5 font-semibold rounded-full cursor-pointer transition-all ${product.active
+                                                        className={`px-3 py-1 inline-flex items-center gap-1 text-xs leading-5 font-semibold rounded-full cursor-pointer transition-all justify-center ${
+                                                            product.active
                                                                 ? 'bg-green-100 text-green-800 hover:bg-green-200'
                                                                 : 'bg-red-100 text-red-800 hover:bg-red-200'
-                                                            }`}
+                                                        }`}
                                                     >
                                                         {product.active ? (
                                                             <>
@@ -437,10 +504,11 @@ export default function AdminDashboard() {
                                                         whileHover={{ scale: 1.05 }}
                                                         whileTap={{ scale: 0.95 }}
                                                         onClick={() => toggleFeatured(product.id, product.featured)}
-                                                        className={`px-3 py-1 inline-flex items-center gap-1 text-xs leading-5 font-semibold rounded-full cursor-pointer transition-all ${product.featured
+                                                        className={`px-3 py-1 inline-flex items-center gap-1 text-xs leading-5 font-semibold rounded-full cursor-pointer transition-all justify-center ${
+                                                            product.featured
                                                                 ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
                                                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                                            }`}
+                                                        }`}
                                                     >
                                                         <Star className={`w-3 h-3 ${product.featured ? 'fill-current' : ''}`} />
                                                         {product.featured ? 'Destacado' : 'Normal'}
@@ -455,6 +523,7 @@ export default function AdminDashboard() {
                                                             whileHover={{ scale: 1.1 }}
                                                             whileTap={{ scale: 0.9 }}
                                                             className="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-50 rounded-lg transition-all"
+                                                            title="Editar producto"
                                                         >
                                                             <Edit className="w-5 h-5" />
                                                         </motion.button>
@@ -463,8 +532,9 @@ export default function AdminDashboard() {
                                                     <motion.button
                                                         whileHover={{ scale: 1.1 }}
                                                         whileTap={{ scale: 0.9 }}
-                                                        onClick={() => handleDelete(product.id, product.name)}
+                                                        onClick={() => setDeleteConfirm({ id: product.id, name: product.name })}
                                                         className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-lg transition-all"
+                                                        title="Eliminar producto"
                                                     >
                                                         <Trash2 className="w-5 h-5" />
                                                     </motion.button>
@@ -477,7 +547,7 @@ export default function AdminDashboard() {
                                         <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                                             <Package className="w-16 h-16 mx-auto mb-4 opacity-30" />
                                             <p className="text-lg font-medium">No se encontraron productos</p>
-                                            <p className="text-sm">Intenta con otros filtros</p>
+                                            <p className="text-sm">Intenta con otros filtros o crea uno nuevo</p>
                                         </td>
                                     </tr>
                                 )}
@@ -486,6 +556,56 @@ export default function AdminDashboard() {
                     </div>
                 </motion.div>
             </div>
+
+            {/* Delete Confirmation Modal */}
+            <AnimatePresence>
+                {deleteConfirm && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+                        onClick={() => setDeleteConfirm(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="text-center mb-6">
+                                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-red-100 mb-4">
+                                    <AlertCircle className="w-7 h-7 text-red-600" />
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                                    Eliminar producto
+                                </h3>
+                                <p className="text-gray-600">
+                                    ¿Estás seguro de que deseas eliminar <span className="font-bold">"{deleteConfirm.name}"</span>? Esta acción no se puede deshacer.
+                                </p>
+                            </div>
+
+                            <div className="flex gap-3">
+                                <motion.button
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => setDeleteConfirm(null)}
+                                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition"
+                                >
+                                    Cancelar
+                                </motion.button>
+                                <motion.button
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => handleDelete(deleteConfirm.id)}
+                                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition"
+                                >
+                                    Eliminar
+                                </motion.button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     )
 }

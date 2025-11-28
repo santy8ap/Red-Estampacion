@@ -10,13 +10,17 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      allowDangerousEmailAccountLinking: true,
     }),
   ],
   callbacks: {
     async session({ session, user }) {
-      if (session?.user) {
+      // Asegurar que user existe antes de acceder a sus propiedades
+      if (session?.user && user) {
         session.user.id = user.id
         session.user.role = (user as any).role || 'USER'
+        // Asegurar que la imagen venga del usuario en la BD
+        session.user.image = user.image || session.user.image
       }
       return session
     },
@@ -24,7 +28,7 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/auth/signin',
   },
-  debug: true, // Para ver errores en desarrollo
+  debug: true,
   secret: process.env.NEXTAUTH_SECRET,
 }
 

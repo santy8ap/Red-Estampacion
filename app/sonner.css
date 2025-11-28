@@ -1,0 +1,104 @@
+/* Sonner Toast Notifications Styles */
+
+[data-sonner-toast] {
+    @apply p-4 rounded-xl shadow-lg border-l-4;
+    gap: 12px;
+}
+
+/* Success Toast */
+[data-sonner-toast][data-type="success"] {
+    @apply bg-gradient-to-r from-green-50 to-emerald-50 border-l-green-500 border border-green-200;
+}
+
+[data-sonner-toast][data-type="success"] [data-icon] {
+    @apply text-green-600;
+}
+
+[data-sonner-toast][data-type="success"] [data-close-button] {
+    @apply text-green-600 hover:bg-green-100;
+}
+
+/* Error Toast */
+[data-sonner-toast][data-type="error"] {
+    @apply bg-gradient-to-r from-red-50 to-rose-50 border-l-red-500 border border-red-200;
+}
+
+[data-sonner-toast][data-type="error"] [data-icon] {
+    @apply text-red-600;
+}
+
+[data-sonner-toast][data-type="error"] [data-close-button] {
+    @apply text-red-600 hover:bg-red-100;
+}
+
+/* Warning Toast */
+[data-sonner-toast][data-type="warning"] {
+    @apply bg-gradient-to-r from-yellow-50 to-amber-50 border-l-yellow-500 border border-yellow-200;
+}
+
+[data-sonner-toast][data-type="warning"] [data-icon] {
+    @apply text-yellow-600;
+}
+
+[data-sonner-toast][data-type="warning"] [data-close-button] {
+    @apply text-yellow-600 hover:bg-yellow-100;
+}
+
+/* Info Toast */
+[data-sonner-toast][data-type="info"] {
+    @apply bg-gradient-to-r from-blue-50 to-cyan-50 border-l-blue-500 border border-blue-200;
+}
+
+[data-sonner-toast][data-type="info"] [data-icon] {
+    @apply text-blue-600;
+}
+
+[data-sonner-toast][data-type="info"] [data-close-button] {
+    @apply text-blue-600 hover:bg-blue-100;
+}
+
+/* Toast Title and Description */
+[data-sonner-toast] [data-title] {
+    @apply font-semibold text-sm text-gray-900 mb-1;
+}
+
+[data-sonner-toast] [data-description] {
+    @apply text-xs text-gray-600;
+}
+
+/* Close Button */
+[data-sonner-toast] [data-close-button] {
+    @apply rounded-md p-1 transition-colors;
+}
+
+/* Toast Container */
+[data-sonner-toaster] {
+    @apply bottom-0 right-0;
+}
+
+/* Animation */
+[data-sonner-toast] {
+    animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(384px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    [data-sonner-toaster] {
+        @apply w-full;
+    }
+
+    [data-sonner-toast] {
+        @apply mx-4;
+    }
+}
