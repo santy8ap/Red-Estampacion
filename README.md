@@ -1,4 +1,5 @@
-# 🎨 Red Estampación - E-Commerce Platform
+# 🎨 Red Estampación - E-Commerce Platform 
+
 
 > **Status**: ✅ **FULLY FUNCTIONAL** | Production Ready | All Features Integrated
 
